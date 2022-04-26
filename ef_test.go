@@ -10,12 +10,12 @@ func TestMap(t *testing.T) {
 }
 
 func TestScratch(t *testing.T) {
-	var iter Iterator[int] = &listIter[int]{
+	var iter Iter[int] = &listIter[int]{
 		list:      []int{1, 2, 3},
 		nextIndex: 0,
 	}
 
-	IteratorForEach(iter, func(v int) {
+	IterEach(iter, func(v int) {
 		fmt.Println("@@@ value is - ", v)
 	})
 }
@@ -25,7 +25,7 @@ func TestReadJSON(t *testing.T) {
 		Foo string
 		Bar string
 	}
-	expected := A{"foo", "bar"}
+	// expected := A{"foo", "bar"}
 
 	// so - not at all convinced this is like _better_, but it's interesting.
 	//
@@ -39,6 +39,17 @@ func TestReadJSON(t *testing.T) {
 	//
 	// Not that this is a good idea, but could you elide the first argument via a
 	// form of currying? I kinda doubt that'd work here, but let's play around.
-	var actual *A = MustReadJSON[string, A](`{"Foo": "foo", "Bar": "bar"}`)
-	fmt.Printf("equal? '%+v' '%+v'", expected, *actual)
+
+	in := `{"Foo": "foo", "Bar": "bar"}`
+
+	// so this is interesting. Still would be better to be able to take
+	// an interface in AutoReader, but still decent.
+	v, err := ReadJSON[A](AutoReader(in))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("@@@ read value - '%+v'\n", v)
+
+	fmt.Printf("@@@ pair is - %s\n", NewPair("v1", "v3"))
+
 }
