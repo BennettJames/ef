@@ -53,3 +53,24 @@ func TestReadJSON(t *testing.T) {
 	fmt.Printf("@@@ pair is - %s\n", NewPair("v1", "v3"))
 
 }
+
+func TestIntRange(t *testing.T) {
+
+	// note [bs]: not sure the default should be inclusive.
+
+	StreamEach(Range(5, 10), func(val int) {
+		fmt.Printf("@@@ val - %v\n", val)
+	})
+
+	StreamEach(Range(uint64(0), uint64(3)), func(val uint64) {
+		fmt.Printf("@@@ uint val - %v\n", val)
+	})
+
+	baseRange := Range(order(3, 0))
+	asStrings := StreamMap(baseRange, func(v int) string {
+		return fmt.Sprintf("<value as string: %v>", v)
+	})
+	StreamEach(asStrings, func(val string) {
+		fmt.Printf("@@@ output is - %v\n", val)
+	})
+}
