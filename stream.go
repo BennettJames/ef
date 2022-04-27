@@ -14,95 +14,53 @@ type Streamable[V any] interface {
 
 func NewStream[V any, S Streamable[V]](s S) Stream[V] {
 	// note [bs]: for some of these, may be better to custom define an iterator
-	// rather than
+	// rather than re-using the list iterator. Also, some of the indirection here
+	// is probably silly and a bit inefficient.
 	switch narrowed := (interface{})(s).(type) {
 	case []V:
-		return Stream[V]{
-			src: &listIter[V]{
-				list: narrowed,
-			},
-		}
+		return newListStream(narrowed)
 	case *V:
-		if narrowed != nil {
-			return Stream[V]{
-				src: &listIter[V]{
-					list: []V{*narrowed},
-				},
-			}
-		} else {
-			return Stream[V]{
-				src: &listIter[V]{},
-			}
-		}
+		return newListStream(NewNullableOpt(narrowed).ToList())
 	case Opt[V]:
-		if narrowed.IsPresent() {
-			return Stream[V]{
-				src: &listIter[V]{
-					list: []V{*narrowed.val},
-				},
-			}
-		} else {
-			return Stream[V]{
-				src: &listIter[V]{},
-			}
-		}
+		return newListStream(narrowed.ToList())
 	case Stream[V]:
 		return narrowed
 	case func() Opt[V]:
-		return Stream[V]{
-			src: &iterFn[V]{
-				fn: narrowed,
-			},
-		}
+		return newFnStream(narrowed)
 	default:
 		panic("unreachable")
 	}
 }
 
 func StreamMap[V any, U any](s Stream[V], fn func(v V) U) Stream[U] {
-	return Stream[U]{
-		src: &iterFn[U]{
-			fn: func() Opt[U] {
-				next := s.src.Next()
-				if !next.IsPresent() {
-					return Opt[U]{}
-				}
-				var val U = fn(next.Get())
-				return Opt[U]{val: &val}
-			},
-		},
-	}
+	return newFnStream(func() Opt[U] {
+		return OptMap(s.src.Next(), func(v V) U {
+			return fn(v)
+		})
+	})
 }
 
 func StreamPeek[V any](s Stream[V], fn func(v V)) Stream[V] {
-	return Stream[V]{
-		src: &iterFn[V]{
-			fn: func() Opt[V] {
-				next := s.src.Next()
-				if next.IsPresent() {
-					fn(next.Get())
-				}
-				return next
-			},
-		},
-	}
+	return newFnStream(func() Opt[V] {
+		next := s.src.Next()
+		next.IfSet(func(v V) {
+			fn(v)
+		})
+		return next
+	})
 }
 
 func StreamFilter[V any](s Stream[V], fn func(v V) bool) Stream[V] {
-	return Stream[V]{
-		src: &iterFn[V]{
-			fn: func() Opt[V] {
-				// note [bs]: I know this isn't actually a risk, but this makes me a
-				// little uncomfortable. Let's think about safer conditions.
-				for {
-					next := s.src.Next()
-					if !next.IsPresent() || fn(next.Get()) {
-						return next
-					}
-				}
-			},
-		},
-	}
+	return newFnStream(func() Opt[V] {
+		// note [bs]: I know this isn't actually a risk, but this makes me a
+		// little uncomfortable. Let's think about safer conditions.
+		for {
+			next := s.src.Next()
+			if !next.IsPresent() || fn(next.Get()) {
+				return next
+			}
+		}
+	})
 }
 
 func StreamToPairs[V any, U comparable, T any](
@@ -136,7 +94,8 @@ func IterEach[V any](iter Iter[V], fn func(v V)) {
 		next := iter.Next()
 		if !next.IsPresent() {
 			return
+		} else {
+			fn(next.Get())
 		}
-		fn(*next.val)
 	}
 }

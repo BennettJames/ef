@@ -109,11 +109,19 @@ func (m *gmapDict[KeyType, ValueType]) Get(key KeyType) Opt[ValueType] {
 	if !ok {
 		return Opt[ValueType]{}
 	}
-	return Opt[ValueType]{&value}
+	return NewOpt(value)
 }
 
 type iterFn[V any] struct {
 	fn func() Opt[V]
+}
+
+func newFnStream[V any](fn func() Opt[V]) Stream[V] {
+	return Stream[V]{
+		src: &iterFn[V]{
+			fn: fn,
+		},
+	}
 }
 
 func (i *iterFn[V]) Next() Opt[V] {
@@ -125,11 +133,19 @@ type listIter[V any] struct {
 	nextIndex int
 }
 
+func newListStream[V any](values []V) Stream[V] {
+	return Stream[V]{
+		src: &listIter[V]{
+			list: values,
+		},
+	}
+}
+
 func (l *listIter[V]) Next() Opt[V] {
 	if l.nextIndex >= len(l.list) {
 		return Opt[V]{}
 	}
 	v := l.list[l.nextIndex]
 	l.nextIndex++
-	return Opt[V]{&v}
+	return NewOpt(v)
 }

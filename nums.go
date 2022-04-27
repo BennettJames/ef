@@ -51,5 +51,5 @@ func (i *iterInts[I]) Next() Opt[I] {
 		return Opt[I]{}
 	}
 	i.index += 1
-	return Opt[I]{val: &v}
+	return NewOpt(v)
 }
