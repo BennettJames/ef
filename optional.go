@@ -74,3 +74,10 @@ func MapOpt[V any, T any](o Opt[V], fn func(v V) T) Opt[T] {
 		val: &val,
 	}
 }
+
+func OptFlatten[V any](o Opt[Opt[V]]) Opt[V] {
+	if o.IsPresent() {
+		return o.Get()
+	}
+	return Opt[V]{}
+}

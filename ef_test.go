@@ -70,7 +70,12 @@ func TestIntRange(t *testing.T) {
 	asStrings := StreamMap(baseRange, func(v int) string {
 		return fmt.Sprintf("<value as string: %v>", v)
 	})
-	StreamEach(asStrings, func(val string) {
+	withPeek := StreamPeek(asStrings, func(s string) {
+		fmt.Printf("@@@ taking a peek at - %v\n", s)
+	})
+	StreamEach(withPeek, func(val string) {
 		fmt.Printf("@@@ output is - %v\n", val)
 	})
+
+	// I think it might be time to do some collecting.
 }
