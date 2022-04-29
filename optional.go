@@ -1,65 +1,65 @@
 package ef
 
-type Opt[V any] struct {
-	val     V
+type Opt[T any] struct {
+	value   T
 	present bool
 }
 
-func NewOpt[V any](val V) Opt[V] {
-	return Opt[V]{
-		val:     val,
+func NewOpt[T any](val T) Opt[T] {
+	return Opt[T]{
+		value:   val,
 		present: true,
 	}
 }
 
-func NewNullableOpt[V any](val *V) Opt[V] {
+func NewNullableOpt[T any](val *T) Opt[T] {
 	if val == nil {
-		return Opt[V]{
+		return Opt[T]{
 			present: false,
 		}
 	}
 	return NewOpt(*val)
 }
 
-func (o Opt[V]) Get() V {
+func (o Opt[T]) Get() T {
 	// todo: consider renaming this some like "DangerouslyGet".
 	if !o.present {
 		panic("'Get' called on empty optional")
 	}
-	return o.val
+	return o.value
 }
 
-func (o Opt[V]) IsPresent() bool {
+func (o Opt[T]) IsPresent() bool {
 	return o.present
 }
 
-func (o Opt[V]) IfSet(fn func(v V)) {
+func (o Opt[T]) IfSet(fn func(v T)) {
 	if o.present {
-		fn(o.val)
+		fn(o.value)
 	}
 }
 
-func (o Opt[V]) Try() (value *V, isSet bool) {
-	return &o.val, o.present
+func (o Opt[T]) Try() (value *T, isSet bool) {
+	return &o.value, o.present
 }
 
-func (o Opt[V]) Or(altVal V) V {
+func (o Opt[T]) Or(altVal T) T {
 	if o.IsPresent() {
-		return o.val
+		return o.value
 	}
 	return altVal
 }
 
-func (o Opt[V]) OrCalc(orFn func() V) V {
+func (o Opt[T]) OrCalc(orFn func() T) T {
 	if o.IsPresent() {
-		return o.val
+		return o.value
 	}
 	return orFn()
 }
 
-func (o Opt[V]) ToList() []V {
+func (o Opt[T]) ToList() []T {
 	if o.IsPresent() {
-		return []V{o.val}
+		return []T{o.value}
 	} else {
 		return nil
 	}
@@ -69,17 +69,17 @@ func (o Opt[V]) ToList() []V {
 // as methods have fairly restrictive generic options - basically
 // can just operate on a root.
 
-func OptMap[V any, T any](o Opt[V], fn func(v V) T) Opt[T] {
+func OptMap[T any, U any](o Opt[T], fn func(v T) U) Opt[U] {
 	if !o.present {
-		return Opt[T]{}
+		return Opt[U]{}
 	}
-	return NewOpt(fn(o.val))
+	return NewOpt(fn(o.value))
 }
 
 // OptFlatten reduces a nested optional down to one.
-func OptFlatten[V any](o Opt[Opt[V]]) Opt[V] {
+func OptFlatten[T any](o Opt[Opt[T]]) Opt[T] {
 	if o.IsPresent() {
 		return o.Get()
 	}
-	return Opt[V]{}
+	return Opt[T]{}
 }

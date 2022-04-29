@@ -50,10 +50,6 @@ func AutoReader[R Readable](r R) io.Reader {
 // This may explain the issue -
 // https://github.com/golang/go/issues/45346#issuecomment-862505803
 
-func JSONReader[S Readable, V any](s S) func() V {
-	return nil
-}
-
 func ReadJSON[Out any](s io.Reader) (out *Out, err error) {
 	out = new(Out)
 	err = json.NewDecoder(s).Decode(out)

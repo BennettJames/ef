@@ -4,8 +4,8 @@ import "sync/atomic"
 
 type (
 	// (todo)
-	AtomicRef[V any] struct {
-		v atomic.Value
+	AtomicRef[T any] struct {
+		value atomic.Value
 	}
 
 	// (todo)
@@ -48,23 +48,23 @@ type (
 )
 
 // (todo)
-func (ar AtomicRef[V]) CompareAndSwap(old, new V) (swapped bool) {
-	return ar.v.CompareAndSwap(old, new)
+func (ar AtomicRef[T]) CompareAndSwap(old, new T) (swapped bool) {
+	return ar.value.CompareAndSwap(old, new)
 }
 
 // (todo)
-func (ar AtomicRef[V]) Load() (val V) {
-	return ar.v.Load().(V)
+func (ar AtomicRef[T]) Load() (val T) {
+	return ar.value.Load().(T)
 }
 
 // (todo)
-func (ar AtomicRef[V]) Store(val V) {
-	ar.v.Store(val)
+func (ar AtomicRef[T]) Store(val T) {
+	ar.value.Store(val)
 }
 
 // (todo)
-func (ar AtomicRef[V]) Swap(new V) (old V) {
-	return ar.v.Swap(new).(V)
+func (ar AtomicRef[T]) Swap(new T) (old T) {
+	return ar.value.Swap(new).(T)
 }
 
 // (todo)
