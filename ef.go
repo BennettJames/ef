@@ -9,48 +9,13 @@ type (
 		Next() Opt[T]
 	}
 
-	Pair[T1 any, T2 any] struct {
+	Pair[T1, T2 any] struct {
 		First  T1
 		Second T2
 	}
 )
 
-// MapKeys returns a slice of all the keys in m.
-// The keys are not returned in any particular order.
-func MapKeys[Key comparable, Val any](m map[Key]Val) []Key {
-	s := make([]Key, 0, len(m))
-	for k := range m {
-		s = append(s, k)
-	}
-	return s
-}
-
-// MapList applies a function to every item in a given list, and
-// returns the combined
-func MapList[T any, U any](
-	input []T,
-	fn func(T) U,
-) []U {
-	ret := make([]U, len(input))
-	for i, v := range input {
-		ret[i] = fn(v)
-	}
-	return ret
-}
-
-func MapMap[T1 comparable, U1 any, T2 comparable, U2 any](
-	input map[T1]U1,
-	fn func(k T1, v U1) (k2 T2, v2 U2),
-) map[T2]U2 {
-	ret := make(map[T2]U2, len(input))
-	for k1, v1 := range input {
-		k2, v2 := fn(k1, v1)
-		ret[k2] = v2
-	}
-	return ret
-}
-
-func NewPair[T1 any, T2 any](
+func NewPair[T1, T2 any](
 	left T1,
 	right T2,
 ) Pair[T1, T2] {

@@ -1,5 +1,10 @@
 package ef
 
+import (
+	"fmt"
+	"math"
+)
+
 // ques [bs]: do I want stream to be a concrete or abstract type?
 
 type Stream[T any] struct {
@@ -58,6 +63,31 @@ func (s Stream[V]) ToList() []V {
 func StreamToMap[T comparable, U any](s Stream[Pair[T, U]]) map[T]U {
 	m := make(map[T]U)
 	PStreamEach(s, func(t T, u U) {
+		if existing, exists := m[t]; !exists {
+			m[t] = u
+		} else {
+			panic(fmt.Sprintf(
+				"StreamToMap: duplicate values found for key '%v' - ['%v', '%v']",
+				t, u, existing))
+		}
+		m[t] = u
+	})
+	return m
+}
+
+// Gathers a pair stream into a map, and resolves any duplicate keys using the
+// merge function to combine values.
+func StreamToMapSafe[T comparable, U any](
+	s Stream[Pair[T, U]],
+	merge func(key T, val1, val2 U) U,
+) map[T]U {
+	m := make(map[T]U)
+	PStreamEach(s, func(t T, u U) {
+		if existing, exists := m[t]; !exists {
+			m[t] = u
+		} else {
+			m[t] = merge(t, existing, u)
+		}
 		m[t] = u
 	})
 	return m
@@ -154,4 +184,69 @@ func IterEach[T any](iter Iter[T], fn func(v T)) {
 			fn(next.Get())
 		}
 	}
+}
+
+func StreamReduce[T any, U any](
+	s Stream[T],
+	merge func(total U, val T) U,
+) U {
+	// todo [bs]: workshop the initialization here
+	u := new(U)
+	return StreamReduceInit(s, *u, merge)
+}
+
+func StreamReduceInit[T any, U any](
+	s Stream[T],
+	initVal U,
+	merge func(total U, val T) U,
+) U {
+	StreamEach(s, func(v T) {
+		initVal = merge(initVal, v)
+	})
+	return initVal
+}
+
+func StreamAverage[N Number](s Stream[N]) N {
+	// note [bs]: this is not mathematically sound w.r.t to overflow, among other
+	// things. Let's just rip off a superior implementation like in java.
+
+	var total N
+	cnt := int64(0)
+
+	StreamEach(s, func(v N) {
+		total += v
+	})
+
+	// note [bs]: not really convinced this is legal.
+	return total / N(cnt)
+}
+
+// so - let's do a bit of research into how to do average correctly.
+//
+// I think total simply has no guarantees about overflow, unless you go
+// out of your way to check it.
+
+type SummaryStats[N Number] struct {
+	Average  float64
+	Size     int
+	Total    N
+	Min, Max N
+}
+
+func streamStatsInt(s Stream[int]) SummaryStats[int] {
+	return streamStatsInner(math.MinInt, math.MaxInt, s)
+}
+
+func streamStatsInner[N Number](min, max N, s Stream[N]) SummaryStats[N] {
+	stats := SummaryStats[N]{
+		Min: min,
+		Max: max,
+	}
+	StreamEach(s, func(v N) {
+		stats.Size++
+		stats.Total += v
+		stats.Min = Min(stats.Min, v)
+		stats.Max = Max(stats.Max, v)
+	})
+	return stats
 }

@@ -20,7 +20,7 @@ func (sr *explicitReader) Read(p []byte) (n int, err error) {
 }
 
 func AutoReader[R Readable](r R) io.Reader {
-	switch narrowed := (interface{})(r).(type) {
+	switch narrowed := any(r).(type) {
 	case []byte:
 		return bytes.NewReader(narrowed)
 	case string:
