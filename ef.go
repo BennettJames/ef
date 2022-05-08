@@ -70,3 +70,35 @@ func (l *listIter[T]) Next() Opt[T] {
 	l.nextIndex++
 	return NewOpt(v)
 }
+
+// Ptr wraps the provided value as a . Mostly useful for primitives in contexts
+// where you'd otherwise have to declare an extra variable.
+//
+// Example:
+//
+//     // without Ptr:
+//     value := "a string value"
+//     fnThatTakesAStringPointer(&value)
+//
+//     // with Ptr:
+//     fnThatTakesAStringPointer(ef.Ptr("a string value"))
+//
+func Ptr[V any](val V) *V {
+	return &val
+}
+
+// Deref does a "safe dereferencing" of a pointer. If the pointer points to a
+// value, the value is returned; if it is null, it returns a zero-value for the
+// underlying type.
+//
+// Example:
+//
+//     ef.Deref(nil)             // == ""
+//     ef.Deref(ef.Ptr("hello")) // == "hello"
+//
+func Deref[V any](val *V) V {
+	if val == nil {
+		return *new(V)
+	}
+	return *val
+}
