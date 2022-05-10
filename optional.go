@@ -5,20 +5,18 @@ type Opt[T any] struct {
 	present bool
 }
 
-func NewOpt[T any](val T) Opt[T] {
+func OptOf[T any](val T) Opt[T] {
 	return Opt[T]{
 		value:   val,
 		present: true,
 	}
 }
 
-func NewNullableOpt[T any](val *T) Opt[T] {
+func OptOfPtr[T any](val *T) Opt[T] {
 	if val == nil {
-		return Opt[T]{
-			present: false,
-		}
+		return Opt[T]{}
 	}
-	return NewOpt(*val)
+	return OptOf(*val)
 }
 
 func (o Opt[T]) Get() T {
@@ -73,7 +71,7 @@ func OptMap[T any, U any](o Opt[T], fn func(v T) U) Opt[U] {
 	if !o.present {
 		return Opt[U]{}
 	}
-	return NewOpt(fn(o.value))
+	return OptOf(fn(o.value))
 }
 
 // OptFlatten reduces a nested optional down to one.

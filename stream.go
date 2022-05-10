@@ -12,10 +12,10 @@ type Stream[T any] struct {
 }
 
 type Streamable[T any] interface {
-	[]T | *T | Opt[T] | Stream[T] | func() Opt[T]
+	~[]T | ~*T | Opt[T] | Stream[T] | ~func() Opt[T]
 }
 
-func NewStream[T any, S Streamable[T]](s S) Stream[T] {
+func StreamOf[T any, S Streamable[T]](s S) Stream[T] {
 	// note [bs]: for some of these, may be better to custom define an iterator
 	// rather than re-using the list iterator. Also, some of the indirection here
 	// is probably silly and a bit inefficient.
@@ -23,7 +23,7 @@ func NewStream[T any, S Streamable[T]](s S) Stream[T] {
 	case []T:
 		return newListStream(narrowed)
 	case *T:
-		return newListStream(NewNullableOpt(narrowed).ToList())
+		return newListStream(OptOfPtr(narrowed).ToList())
 	case Opt[T]:
 		return newListStream(narrowed.ToList())
 	case Stream[T]:
@@ -45,7 +45,7 @@ func NewPStream[T comparable, U any](m map[T]U) Stream[Pair[T, U]] {
 func mapToList[T comparable, U any](m map[T]U) []Pair[T, U] {
 	l := make([]Pair[T, U], 0, len(m))
 	for k, v := range m {
-		l = append(l, NewPair(k, v))
+		l = append(l, PairOf(k, v))
 	}
 	return l
 }
@@ -75,9 +75,9 @@ func StreamToMap[T comparable, U any](s Stream[Pair[T, U]]) map[T]U {
 	return m
 }
 
-// Gathers a pair stream into a map, and resolves any duplicate keys using the
-// merge function to combine values.
-func StreamToMapSafe[T comparable, U any](
+// StreamToMapMerge gathers a pair stream into a map, and resolves any duplicate
+// keys using the merge function to combine values.
+func StreamToMapMerge[T comparable, U any](
 	s Stream[Pair[T, U]],
 	merge func(key T, val1, val2 U) U,
 ) map[T]U {
@@ -106,7 +106,7 @@ func PStreamMap[T, U, V, W any](
 	fn func(t T, u U) (V, W),
 ) Stream[Pair[V, W]] {
 	return StreamMap(s, func(p Pair[T, U]) Pair[V, W] {
-		return NewPair(fn(p.Unpack()))
+		return PairOf(fn(p.Get()))
 	})
 }
 
@@ -125,7 +125,7 @@ func PStreamPeek[T, U any](
 	fn func(v T, u U),
 ) Stream[Pair[T, U]] {
 	return StreamPeek(s, func(p Pair[T, U]) {
-		fn(p.Unpack())
+		fn(p.Get())
 	})
 }
 
@@ -147,7 +147,7 @@ func PStreamFilter[T, U any](
 	fn func(t T, u U) bool,
 ) Stream[Pair[T, U]] {
 	return StreamFilter(s, func(p Pair[T, U]) bool {
-		return fn(p.Unpack())
+		return fn(p.Get())
 	})
 }
 
@@ -170,7 +170,7 @@ func StreamEach[T any](s Stream[T], fn func(v T)) {
 
 func PStreamEach[T, U any](s Stream[Pair[T, U]], fn func(t T, v U)) {
 	IterEach(s.src, func(p Pair[T, U]) {
-		fn(p.Unpack())
+		fn(p.Get())
 	})
 }
 
@@ -234,7 +234,7 @@ type SummaryStats[N Number] struct {
 }
 
 func streamStatsInt(s Stream[int]) SummaryStats[int] {
-	return streamStatsInner(math.MinInt, math.MaxInt, s)
+	return streamStatsInner(math.MaxInt, math.MinInt, s)
 }
 
 func streamStatsInner[N Number](min, max N, s Stream[N]) SummaryStats[N] {

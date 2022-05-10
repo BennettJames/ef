@@ -126,10 +126,134 @@ func TestRes(t *testing.T) {
 		})
 	})
 
-	t.Run("ResTry", func(t *testing.T) {
-		// ques [bs]: is there an idiomatic "void" type in go? If not, should I add
-		// one?
+	t.Run("IfVal", func(t *testing.T) {
+		t.Run("Val", func(t *testing.T) {
+			set := false
+			ResVal("value").IfVal(func(val string) {
+				set = true
+			})
+			assert.True(t, set)
+		})
 
+		t.Run("Err", func(t *testing.T) {
+			set := false
+			ResErr[string](fmt.Errorf("error")).IfVal(func(val string) {
+				set = true
+			})
+			assert.False(t, set)
+		})
+	})
+
+	t.Run("IfErr", func(t *testing.T) {
+		t.Run("Val", func(t *testing.T) {
+			set := false
+			ResVal("hello").IfErr(func(e error) {
+				set = true
+			})
+			assert.False(t, set)
+		})
+
+		t.Run("Err", func(t *testing.T) {
+			set := false
+			ResErr[string](fmt.Errorf("error")).IfErr(func(e error) {
+				set = true
+			})
+			assert.True(t, set)
+		})
+	})
+
+	t.Run("ResDeref", func(t *testing.T) {
+		t.Run("WithValue", func(t *testing.T) {
+			assert.Equal(
+				t,
+				ResVal("hello"),
+				ResDeref(ResVal(Ptr("hello"))))
+		})
+
+		t.Run("WithNil", func(t *testing.T) {
+			assert.Equal(
+				t,
+				ResVal(""),
+				ResDeref(ResVal[*string](nil)))
+
+		})
+	})
+
+	t.Run("ResMap", func(t *testing.T) {
+		t.Run("Val", func(t *testing.T) {
+			in := 22
+			ret := "hello"
+			assert.Equal(
+				t,
+				ResVal(ret),
+				ResMap(ResVal(in), func(val int) string {
+					assert.Equal(t, in, val)
+					return ret
+				}))
+		})
+
+		t.Run("Err", func(t *testing.T) {
+			err := fmt.Errorf("error")
+			assert.Equal(
+				t,
+				ResErr[string](err),
+				ResMap(ResErr[int](err), func(int) string {
+					panic("unreachable")
+				}))
+		})
+	})
+
+	t.Run("ResFlatMap", func(t *testing.T) {
+		t.Run("Val", func(t *testing.T) {
+			in := 22
+			ret := "hello"
+			assert.Equal(
+				t,
+				ResVal(ret),
+				ResFlatMap(ResVal(in), func(val int) Res[string] {
+					assert.Equal(t, in, val)
+					return ResVal(ret)
+				}))
+		})
+
+		t.Run("OuterErr", func(t *testing.T) {
+			err := fmt.Errorf("error")
+			assert.Equal(
+				t,
+				ResErr[string](err),
+				ResFlatMap(ResErr[int](err), func(int) Res[string] {
+					panic("unreachable")
+				}))
+		})
+
+		t.Run("InnerErr", func(t *testing.T) {
+			in := 22
+			err := fmt.Errorf("error")
+			assert.Equal(
+				t,
+				ResErr[string](err),
+				ResFlatMap(ResErr[int](err), func(val int) Res[string] {
+					assert.Equal(t, in, val)
+					return ResErr[string](err)
+				}))
+		})
+	})
+
+	t.Run("ResRecover", func(t *testing.T) {
+		t.Run("NoPanic", func(t *testing.T) {
+			res := ResVal("value")
+			ResRecover(&res)
+			assert.Equal(t, "value", res.Val())
+		})
+
+		t.Run("NilRes", func(t *testing.T) {
+			assert.Panics(t, func() {
+				ResRecover[string](nil)
+			})
+		})
+	})
+
+	t.Run("ResTry", func(t *testing.T) {
 		t.Run("NoPanicVal", func(t *testing.T) {
 			r := ResVal(22)
 			assert.Equal(
@@ -173,6 +297,39 @@ func TestRes(t *testing.T) {
 		})
 	})
 
+	t.Run("ResFlatTry", func(t *testing.T) {
+		t.Run("NoPanicVal", func(t *testing.T) {
+			r := ResVal(22)
+			assert.Equal(
+				t,
+				ResVal("value: 22"),
+				ResFlatTry(r, func(v int) Res[string] {
+					return ResVal(fmt.Sprintf("value: %v", v))
+				}))
+		})
+
+		t.Run("NoPanicErr", func(t *testing.T) {
+			r := ResErr[string](fmt.Errorf("error"))
+			assert.Equal(
+				t,
+				r,
+				ResFlatTry(r, func(v string) Res[string] {
+					return ResVal("value")
+				}))
+		})
+
+		t.Run("PanicErr", func(t *testing.T) {
+			r := ResVal(22)
+			panicVal := fmt.Errorf("error")
+			assert.Equal(
+				t,
+				ResErr[string](panicVal),
+				ResFlatTry(r, func(v int) Res[string] {
+					panic(panicVal)
+				}))
+		})
+	})
+
 	t.Run("Flatten", func(t *testing.T) {
 		t.Run("Val", func(t *testing.T) {
 			rVal := "value"
@@ -199,71 +356,12 @@ func TestRes(t *testing.T) {
 	})
 }
 
-func genericReturn() (string, error) {
-	return "", fmt.Errorf("(error)")
-}
+func TestResFunc(t *testing.T) {
 
-func Create[T any]() T {
-	return *new(T)
-}
-
-type Hello interface {
-	SayHi() string
-}
-
-type helloImpl struct {
-}
-
-func (hi *helloImpl) SayHi() string {
-	return "hi"
 }
 
 func passthrough[V any](v V, e error) (V, error) {
 	return v, e
-}
-
-func TestPtrAssignment(t *testing.T) {
-
-	t.Run("intTest", func(t *testing.T) {
-		setInt := func(addr *int, value int) {
-			*addr = value
-		}
-
-		value := 0
-		fmt.Println("value is:", value)
-
-		setInt(&value, 10)
-		fmt.Println("value is:", value)
-	})
-
-	t.Run("resTest", func(t *testing.T) {
-		setRes := func(addr *Res[string], value Res[string]) {
-			*addr = value
-		}
-
-		value := ResVal("hello")
-		fmt.Println("value is:", value)
-
-		setRes(&value, ResVal("there"))
-		fmt.Println("value is:", value)
-
-	})
-}
-
-func TestScratchRes(t *testing.T) {
-
-	t.Run("panic experiment", func(t *testing.T) {
-		var res Res[string]
-		defer ResRecover(&res)
-
-		panic("test")
-	})
-
-	t.Run("deref experiment", func(t *testing.T) {
-		nilRef := ResOf[*string](nil, nil)
-		defaultRef := ResMap(nilRef, DerefFn[string]())
-		fmt.Println("@@@ default ref - ", defaultRef)
-	})
 }
 
 func DerefFn[V any]() func(*V) V {

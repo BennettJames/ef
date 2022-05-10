@@ -15,7 +15,7 @@ type (
 	}
 )
 
-func NewPair[T1, T2 any](
+func PairOf[T1, T2 any](
 	left T1,
 	right T2,
 ) Pair[T1, T2] {
@@ -25,7 +25,7 @@ func NewPair[T1, T2 any](
 	}
 }
 
-func (p Pair[T1, T2]) Unpack() (T1, T2) {
+func (p Pair[T1, T2]) Get() (T1, T2) {
 	return p.First, p.Second
 }
 
@@ -68,7 +68,7 @@ func (l *listIter[T]) Next() Opt[T] {
 	}
 	v := l.list[l.nextIndex]
 	l.nextIndex++
-	return NewOpt(v)
+	return OptOf(v)
 }
 
 // Ptr wraps the provided value as a . Mostly useful for primitives in contexts

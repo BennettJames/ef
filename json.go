@@ -8,7 +8,7 @@ import (
 )
 
 type Readable interface {
-	[]byte | string | *string | []rune | func(p []byte) (n int, err error)
+	~[]byte | ~string | ~*string | ~[]rune | ~func(p []byte) (n int, err error)
 }
 
 type explicitReader struct {

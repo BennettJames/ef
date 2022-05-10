@@ -50,7 +50,7 @@ func TestReadJSON(t *testing.T) {
 	}
 	fmt.Printf("@@@ read value - '%+v'\n", v)
 
-	fmt.Printf("@@@ pair is - %s\n", NewPair("v1", "v3"))
+	fmt.Printf("@@@ pair is - %s\n", PairOf("v1", "v3"))
 
 }
 

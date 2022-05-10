@@ -47,6 +47,30 @@ func (r Res[T]) Err() error {
 	return r.err
 }
 
+// IsVal indicates if the result has a value (and is not an error).
+func (r Res[T]) IsVal() bool {
+	return r.err == nil
+}
+
+// IsErr indicates if the result is an error (and does not have a value).
+func (r Res[T]) IsErr() bool {
+	return r.err != nil
+}
+
+// IfVal will execute the passed function if the result is a value.
+func (r Res[T]) IfVal(fn func(val T)) {
+	if r.IsVal() {
+		fn(r.val)
+	}
+}
+
+// IfErr will execute the passed function if the result is an error.
+func (r Res[T]) IfErr(fn func(e error)) {
+	if !r.IsVal() {
+		fn(r.err)
+	}
+}
+
 // String is just a simple string representation of the result for debugging.
 func (r Res[T]) String() string {
 	// ques [bs]: should this have more of a structural difference between
@@ -83,17 +107,20 @@ func ResOfPtr[T any](val *T, e error) Res[T] {
 	return ResErr[T](&ResultNilError{})
 }
 
-func ResDeref[T any](r Res[*T]) Res[T] {
-	return ResMap(r, func(val *T) T {
-		return Deref(val)
-	})
-}
-
-// ResVal
+// ResVal creates a result from the provided value.
 func ResVal[T any](val T) Res[T] {
 	return Res[T]{
 		val: val,
 	}
+}
+
+// ResDeref will create a result with a value from the pointer. If the pointer
+// is nil, a zero value is used.
+func ResDeref[T any](r Res[*T]) Res[T] {
+	// ques [bs]: how happy am I with this behavior _really_?
+	return ResMap(r, func(val *T) T {
+		return Deref(val)
+	})
 }
 
 // ResErr creates an error result for the given error. If the error is
@@ -101,30 +128,6 @@ func ResVal[T any](val T) Res[T] {
 func ResErr[T any](e error) Res[T] {
 	return Res[T]{
 		err: e,
-	}
-}
-
-// IsVal indicates if the result has a value (and is not an error).
-func (r Res[T]) IsVal() bool {
-	return r.err == nil
-}
-
-// IsErr indicates if the result is an error (and does not have a value).
-func (r Res[T]) IsErr() bool {
-	return r.err != nil
-}
-
-// IfVal will execute the passed function if the result is a value.
-func (r Res[T]) IfVal(fn func(val T)) {
-	if r.IsVal() {
-		fn(r.val)
-	}
-}
-
-// IfErr will execute the passed function if the result is an error.
-func (r Res[T]) IfErr(fn func(e error)) {
-	if !r.IsVal() {
-		fn(r.err)
 	}
 }
 
@@ -164,15 +167,21 @@ func ResFlatMap[T, U any](r Res[T], fn func(val T) Res[U]) Res[U] {
 // pointer is nil.
 func ResRecover[T any](r *Res[T]) {
 	if r == nil {
-		// todo [bs]: should define a custom error for this
+		// todo [bs]: consider defining a custom error for this
 		panic("ResRecover called with nil result reference")
 	}
-	if rec := recover(); rec != nil {
-		if err, isErr := rec.(error); isErr {
-			*r = ResErr[T](err)
-		} else {
-			*r = ResErr[T](&ResultRecoverError{recovered: rec})
-		}
+
+	switch narrowed := recover().(type) {
+	case nil:
+		// ques [bs]: is doing this in a type switch less efficient then just checking
+		// directly?
+		return
+	case error:
+		// todo [bs]: consider unwrapping certain internal error types here - e.g.
+		// don't
+		*r = ResErr[T](narrowed)
+	default:
+		*r = ResErr[T](&ResultRecoverError{recovered: narrowed})
 	}
 }
 
@@ -217,6 +226,11 @@ func ResFlatten[T any](r Res[Res[T]]) Res[T] {
 	}
 	return r.val
 }
+
+// note [bs]: I think there's a decent chance I'll want to keep these errors
+// in the root package, and perhaps try to generify them a bit. Like an NPE
+// that's "local and partially legal" might have broader usages in say optional
+// handling.
 
 type ResultRecoverError struct {
 	recovered any
