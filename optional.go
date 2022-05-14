@@ -63,10 +63,6 @@ func (o Opt[T]) ToList() []T {
 	}
 }
 
-// so - I believe the following could *not* be turned into a method,
-// as methods have fairly restrictive generic options - basically
-// can just operate on a root.
-
 func OptMap[T any, U any](o Opt[T], fn func(v T) U) Opt[U] {
 	if !o.present {
 		return Opt[U]{}

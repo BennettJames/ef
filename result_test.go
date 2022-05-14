@@ -364,15 +364,8 @@ func passthrough[V any](v V, e error) (V, error) {
 	return v, e
 }
 
-func DerefFn[V any]() func(*V) V {
-	// so - I'm not yet sure if this is worth keeping, but it does reveal an
-	// interesting constraint. A generic function cannot be be used as a "bare"
-	// value; it must be wrapped. Making a function like this and forcing the caller
-	// to specify the generic parameter does work, however.
-	return func(val *V) V {
-		if val == nil {
-			return *new(V)
-		}
-		return *val
-	}
+func TestNum(t *testing.T) {
+	t.Run("whatever", func(t *testing.T) {
+		fmt.Println("min - ", MinNumber[int16]())
+	})
 }

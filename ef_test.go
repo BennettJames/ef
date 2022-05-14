@@ -1,6 +1,7 @@
 package ef
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 )
@@ -51,6 +52,14 @@ func TestReadJSON(t *testing.T) {
 	fmt.Printf("@@@ read value - '%+v'\n", v)
 
 	fmt.Printf("@@@ pair is - %s\n", PairOf("v1", "v3"))
+
+	// hmm, so this worked quite well. Need to think on that.
+	v2 := ResOfPtr(ReadJSON2[A](in)).Val()
+	fmt.Printf("@@@ second try - %+v\n", v2)
+
+	// so I think this is running afoul of the null
+	var in3 *bytes.Buffer
+	ReadJSON[A](AutoReader(in3.Read))
 
 }
 

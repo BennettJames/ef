@@ -2,7 +2,6 @@ package ef
 
 import (
 	"fmt"
-	"math"
 )
 
 // ques [bs]: do I want stream to be a concrete or abstract type?
@@ -226,6 +225,10 @@ func StreamAverage[N Number](s Stream[N]) N {
 // I think total simply has no guarantees about overflow, unless you go
 // out of your way to check it.
 
+// SummaryStats
+//
+// Note that this is not safe with overflow - if the sum exceeds the number
+// type, then overflow will occur and total / average will not be accurate.
 type SummaryStats[N Number] struct {
 	Average  float64
 	Size     int
@@ -233,14 +236,10 @@ type SummaryStats[N Number] struct {
 	Min, Max N
 }
 
-func streamStatsInt(s Stream[int]) SummaryStats[int] {
-	return streamStatsInner(math.MaxInt, math.MinInt, s)
-}
-
-func streamStatsInner[N Number](min, max N, s Stream[N]) SummaryStats[N] {
+func StreamStats[N Number](s Stream[N]) SummaryStats[N] {
 	stats := SummaryStats[N]{
-		Min: min,
-		Max: max,
+		Min: MaxNumber[N](),
+		Max: MinNumber[N](),
 	}
 	StreamEach(s, func(v N) {
 		stats.Size++
@@ -248,5 +247,8 @@ func streamStatsInner[N Number](min, max N, s Stream[N]) SummaryStats[N] {
 		stats.Min = Min(stats.Min, v)
 		stats.Max = Max(stats.Max, v)
 	})
+	if stats.Size > 0 {
+		stats.Average = float64(stats.Total) / float64(stats.Size)
+	}
 	return stats
 }

@@ -3,6 +3,7 @@ package ef
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
 )
@@ -21,6 +22,8 @@ func (sr *explicitReader) Read(p []byte) (n int, err error) {
 
 func AutoReader[R Readable](r R) io.Reader {
 	switch narrowed := any(r).(type) {
+	case nil:
+		return strings.NewReader("")
 	case []byte:
 		return bytes.NewReader(narrowed)
 	case string:
@@ -29,14 +32,21 @@ func AutoReader[R Readable](r R) io.Reader {
 		if narrowed != nil {
 			return strings.NewReader(*narrowed)
 		} else {
+			// ques [bs]: is this redundant w/ the prior nil case?
 			return strings.NewReader("")
 		}
 	case []rune:
 		// ques [bs]: is this particularly inefficient? I kinda suspect so.
 		return strings.NewReader(string(narrowed))
 	case func(p []byte) (n int, err error):
-		return &explicitReader{
-			fn: narrowed,
+		if narrowed != nil {
+			fmt.Println("@@@ got reader fn; nonnil")
+			return &explicitReader{
+				fn: narrowed,
+			}
+		} else {
+			fmt.Println("@@@ got reader fn; nil")
+			return strings.NewReader("")
 		}
 	default:
 		panic("unreachable")
@@ -53,5 +63,11 @@ func AutoReader[R Readable](r R) io.Reader {
 func ReadJSON[Out any](s io.Reader) (out *Out, err error) {
 	out = new(Out)
 	err = json.NewDecoder(s).Decode(out)
+	return out, err
+}
+
+func ReadJSON2[Out any, In Readable](r In) (out *Out, err error) {
+	out = new(Out)
+	err = json.NewDecoder(AutoReader(r)).Decode(out)
 	return out, err
 }
