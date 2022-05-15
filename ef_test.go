@@ -1,7 +1,6 @@
 package ef
 
 import (
-	"bytes"
 	"fmt"
 	"testing"
 )
@@ -57,9 +56,12 @@ func TestReadJSON(t *testing.T) {
 	v2 := ResOfPtr(ReadJSON2[A](in)).Val()
 	fmt.Printf("@@@ second try - %+v\n", v2)
 
-	// so I think this is running afoul of the null
-	var in3 *bytes.Buffer
-	ReadJSON[A](AutoReader(in3.Read))
+	// so I think this is running afoul of the nil interface problem.
+	// Let's see if that can reasonably be solved - I'd prefer a null
+	// passed to auto reader just result in an
+
+	// var in3 *bytes.Buffer
+	// ReadJSON[A](AutoReader(in3.Read))
 
 }
 

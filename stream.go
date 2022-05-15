@@ -112,7 +112,7 @@ func PStreamMap[T, U, V, W any](
 func StreamPeek[T any](s Stream[T], fn func(v T)) Stream[T] {
 	return newFnStream(func() Opt[T] {
 		next := s.src.Next()
-		next.IfSet(func(v T) {
+		next.IfVal(func(v T) {
 			fn(v)
 		})
 		return next
@@ -134,7 +134,7 @@ func StreamFilter[T any](s Stream[T], fn func(v T) bool) Stream[T] {
 		// little uncomfortable. Let's think about safer conditions.
 		for {
 			next := s.src.Next()
-			if !next.IsPresent() || fn(next.Get()) {
+			if !next.IsVal() || fn(next.Val()) {
 				return next
 			}
 		}
@@ -177,10 +177,10 @@ func IterEach[T any](iter Iter[T], fn func(v T)) {
 	// todo - consider whether this method even should exist.
 	for {
 		next := iter.Next()
-		if !next.IsPresent() {
+		if !next.IsVal() {
 			return
 		} else {
-			fn(next.Get())
+			fn(next.Val())
 		}
 	}
 }

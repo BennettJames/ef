@@ -90,21 +90,37 @@ func ResOf[T any](val T, e error) Res[T] {
 	return ResErr[T](e)
 }
 
+func ResOf2[T, U any](v1 T, v2 U, e error) Res[Pair[T, U]] {
+	if e == nil {
+		return ResVal(PairOf(v1, v2))
+	}
+	return ResErr[Pair[T, U]](e)
+}
+
 // ResOfPtr takes a par of a pointer value and an error, and converts it to a a
 // result. If the error is nonnil, then the result is an error type with the
 // error stored. If the value is present, then the pointer's value is stored in
 // the result. If both are nil, then an error result with a nil pointer error is
 // returned.
 func ResOfPtr[T any](val *T, e error) Res[T] {
-	// note [bs]: not 100% convinced this function need exist. Let's think
-	// a bit about composition here.
 	if e != nil {
 		return ResErr[T](e)
 	}
 	if val != nil {
 		return ResVal(*val)
 	}
-	return ResErr[T](&ResultNilError{})
+	return ResErr[T](&UnexpectedNilError{})
+}
+
+// ResOfOpt will return an value type result if the optional has a value, or
+// a result with a nil reference error.
+func ResOfOpt[T any](o Opt[T]) Res[T] {
+	// note [bs]: pretty sure this equivalent of ResOfPtr(o.Get())
+	return OptMap(o, func(v T) Res[T] {
+		return ResVal(v)
+	}).OrCalc(func() Res[T] {
+		return ResErr[T](&UnexpectedNilError{})
+	})
 }
 
 // ResVal creates a result from the provided value.
@@ -181,15 +197,15 @@ func ResRecover[T any](r *Res[T]) {
 		// don't
 		*r = ResErr[T](narrowed)
 	default:
-		*r = ResErr[T](&ResultRecoverError{recovered: narrowed})
+		*r = ResErr[T](&RecoverError{recovered: narrowed})
 	}
 }
 
-// ResTry will execute the given function with the result value, provided the
+// ResTryMap will execute the given function with the result value, provided the
 // result is a value type. If it is an error type, then the error is returned.
 //
 // Any panics in the inner function will be converted to an error result.
-func ResTry[V, U any](r Res[V], fn func(val V) U) (res Res[U]) {
+func ResTryMap[V, U any](r Res[V], fn func(val V) U) (res Res[U]) {
 	defer ResRecover(&res)
 	if !r.IsVal() {
 		return ResErr[U](r.err)
@@ -197,18 +213,17 @@ func ResTry[V, U any](r Res[V], fn func(val V) U) (res Res[U]) {
 	return ResVal(fn(r.val))
 }
 
-// ResFlatTry is as ResTry, but expects a result from the inner function.
-func ResFlatTry[V, U any](r Res[V], fn func(val V) Res[U]) (res Res[U]) {
+// ResTryFlatMap is as ResTry, but expects a result from the inner function.
+func ResTryFlatMap[V, U any](
+	r Res[V],
+	fn func(val V) Res[U],
+) (res Res[U]) {
 	defer ResRecover(&res)
 	if !r.IsVal() {
 		return ResErr[U](r.err)
 	}
 	return ResFlatten(ResVal(fn(r.val)))
 }
-
-// todo [bs]: consider use cases for returning results from try / map. Could
-// just let the user all flatten on them, or could make custom "flat" calls
-// for those. I'd lean towards the later - just a bit cleaner.
 
 // ResFlatten turns a nested result into a single flat one - if either the inner
 // or the outer result has an error, then it is returned as an error result.
@@ -225,26 +240,4 @@ func ResFlatten[T any](r Res[Res[T]]) Res[T] {
 		return ResErr[T](r.err)
 	}
 	return r.val
-}
-
-// note [bs]: I think there's a decent chance I'll want to keep these errors
-// in the root package, and perhaps try to generify them a bit. Like an NPE
-// that's "local and partially legal" might have broader usages in say optional
-// handling.
-
-type ResultRecoverError struct {
-	recovered any
-}
-
-func (e *ResultRecoverError) Error() string {
-	// note [bs]: not super happy with this text value; let's workshop it.
-	return fmt.Sprintf("Recovered try with value: '%v'", e.recovered)
-}
-
-type ResultNilError struct{}
-
-func (e *ResultNilError) Error() string {
-	// note [bs]: I don't think this type and it's behavior 100% make sense as is,
-	// but I feel like I might be circling towards something more meaningful.
-	return "Result encountered an unexpected nil"
 }

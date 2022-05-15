@@ -102,7 +102,7 @@ func TestRes(t *testing.T) {
 		t.Run("NilVal", func(t *testing.T) {
 			val, err := ResOfPtr[string](nil, nil).Get()
 			assert.Equal(t, "", val)
-			assert.Equal(t, &ResultNilError{}, err)
+			assert.Equal(t, &UnexpectedNilError{}, err)
 		})
 
 		t.Run("Err", func(t *testing.T) {
@@ -259,7 +259,7 @@ func TestRes(t *testing.T) {
 			assert.Equal(
 				t,
 				ResVal("value: 22"),
-				ResTry(r, func(v int) string {
+				ResTryMap(r, func(v int) string {
 					return fmt.Sprintf("value: %v", v)
 				}))
 		})
@@ -269,7 +269,7 @@ func TestRes(t *testing.T) {
 			assert.Equal(
 				t,
 				r,
-				ResTry(r, func(v string) string {
+				ResTryMap(r, func(v string) string {
 					return "value"
 				}))
 		})
@@ -280,7 +280,7 @@ func TestRes(t *testing.T) {
 			assert.Equal(
 				t,
 				ResErr[string](panicVal),
-				ResTry(r, func(v int) string {
+				ResTryMap(r, func(v int) string {
 					panic(panicVal)
 				}))
 		})
@@ -290,8 +290,8 @@ func TestRes(t *testing.T) {
 			var panicVal any = "error"
 			assert.Equal(
 				t,
-				ResErr[string](&ResultRecoverError{panicVal}),
-				ResTry(r, func(v int) string {
+				ResErr[string](&RecoverError{panicVal}),
+				ResTryMap(r, func(v int) string {
 					panic(panicVal)
 				}))
 		})
@@ -303,7 +303,7 @@ func TestRes(t *testing.T) {
 			assert.Equal(
 				t,
 				ResVal("value: 22"),
-				ResFlatTry(r, func(v int) Res[string] {
+				ResTryFlatMap(r, func(v int) Res[string] {
 					return ResVal(fmt.Sprintf("value: %v", v))
 				}))
 		})
@@ -313,7 +313,7 @@ func TestRes(t *testing.T) {
 			assert.Equal(
 				t,
 				r,
-				ResFlatTry(r, func(v string) Res[string] {
+				ResTryFlatMap(r, func(v string) Res[string] {
 					return ResVal("value")
 				}))
 		})
@@ -324,7 +324,7 @@ func TestRes(t *testing.T) {
 			assert.Equal(
 				t,
 				ResErr[string](panicVal),
-				ResFlatTry(r, func(v int) Res[string] {
+				ResTryFlatMap(r, func(v int) Res[string] {
 					panic(panicVal)
 				}))
 		})
@@ -356,16 +356,6 @@ func TestRes(t *testing.T) {
 	})
 }
 
-func TestResFunc(t *testing.T) {
-
-}
-
 func passthrough[V any](v V, e error) (V, error) {
 	return v, e
-}
-
-func TestNum(t *testing.T) {
-	t.Run("whatever", func(t *testing.T) {
-		fmt.Println("min - ", MinNumber[int16]())
-	})
 }

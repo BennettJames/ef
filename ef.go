@@ -13,6 +13,13 @@ type (
 		First  T1
 		Second T2
 	}
+
+	// Void is a non-instantiable interface. Mostly useful when specifying type
+	// parameters when one type is never used - e.g. you have to shoehorn in a
+	// `Res[T]`` type where T is never used, `Res[Void]` can be.
+	Void interface {
+		neverImplented()
+	}
 )
 
 func PairOf[T1, T2 any](
