@@ -92,6 +92,20 @@ func TestRes(t *testing.T) {
 		})
 	})
 
+	t.Run("ResOf2", func(t *testing.T) {
+		t.Run("Vals", func(t *testing.T) {
+			res := ResOf2("a", 22, nil)
+			assert.Equal(t, ResVal(PairOf("a", 22)), res)
+		})
+
+		t.Run("Err", func(t *testing.T) {
+			err := fmt.Errorf("error")
+			res := ResOf2("a", 22, err)
+			assert.Equal(t, ResErr[Pair[string, int]](err), res)
+
+		})
+	})
+
 	t.Run("ResOfPtr", func(t *testing.T) {
 		t.Run("Val", func(t *testing.T) {
 			val, err := ResOfPtr(Ptr("value"), nil).Get()
@@ -109,6 +123,18 @@ func TestRes(t *testing.T) {
 			val, err := ResOfPtr(passthrough[*string](nil, fmt.Errorf("error"))).Get()
 			assert.Equal(t, fmt.Errorf("error"), err)
 			assert.Equal(t, "", val)
+		})
+	})
+
+	t.Run("ResOfOpt", func(t *testing.T) {
+		t.Run("Val", func(t *testing.T) {
+			res := ResOfOpt(OptOf("hello"))
+			assert.Equal(t, ResVal("hello"), res)
+		})
+
+		t.Run("Nil", func(t *testing.T) {
+			res := ResOfOpt(OptOfPtr[string](nil))
+			assert.Equal(t, ResErr[string](&UnexpectedNilError{}), res)
 		})
 	})
 

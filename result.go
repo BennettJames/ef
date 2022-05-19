@@ -90,6 +90,14 @@ func ResOf[T any](val T, e error) Res[T] {
 	return ResErr[T](e)
 }
 
+// Creates a result from three values, where the first two are turned into
+// a pair with the values stored.
+//
+// This is mostly designed for cases where a function returns three values
+// and you wish to wrap it in a result; e.g. -
+//
+//    var r io.RuneReader
+//    var res Res[Pair[rune, int]] = result.Of2(r.ReadRune())
 func ResOf2[T, U any](v1 T, v2 U, e error) Res[Pair[T, U]] {
 	if e == nil {
 		return ResVal(PairOf(v1, v2))
