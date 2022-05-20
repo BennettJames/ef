@@ -2,30 +2,40 @@ package ef
 
 import "math"
 
+// SingedInteger is an interface union of all signed integer primitives.
 type SingedInteger interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64
 }
 
+// UnsignedInteger is an interface union of all unsigned integer primitives.
 type UnsignedInteger interface {
 	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
 }
 
+// Integer is an interface union of all integer primitives.
 type Integer interface {
 	SingedInteger | UnsignedInteger
 }
 
+// Float is an interfaces union of all float primitives.
 type Float interface {
 	float32 | float64
 }
 
+// Complex is an interface union of all explicitly complex primitives.
 type Complex interface {
 	complex64 | complex128
 }
 
+// Number is an interface union of all real numbers.
+//
+// Authors note: this is called "Number" rather than "RealNumber" mostly as it
+// is shorter, and order-able numbers are used much more often than complex.
 type Number interface {
 	Integer | Float
 }
 
+// AllNumber is an inferace union of all complex and real number types.
 type AllNumber interface {
 	Number | Complex
 }
