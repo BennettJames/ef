@@ -9,6 +9,11 @@ import (
 
 func TestNum(t *testing.T) {
 
+	t.Run("Order", func(t *testing.T) {
+		assert.Equal(t, PairOf(5, 22), PairOf(Order(5, 22)))
+		assert.Equal(t, PairOf(5, 22), PairOf(Order(22, 5)))
+	})
+
 	t.Run("MinNumber", func(t *testing.T) {
 		checkEqualNum(t, MinNumber[int](), math.MinInt)
 		checkEqualNum(t, MinNumber[int8](), math.MinInt8)

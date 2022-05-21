@@ -8,6 +8,9 @@ type (
 	}
 
 	UnexpectedNilError struct{}
+
+	// UnreachableError is designed to be thrown
+	UnreachableError struct{}
 )
 
 func (e *RecoverError) Error() string {
@@ -23,4 +26,11 @@ func (e *UnexpectedNilError) Error() string {
 	// useful? Let's think on whether adding a bit of calling context
 	// might be useful. I suspect yes.
 	return "Result encountered an unexpected nil"
+}
+
+func (e *UnreachableError) Error() string {
+	// ques [bs]: should I add any context-building facilities
+	// to this? yeah, this feels plain to the point of uselessness.
+
+	return "unreachable"
 }

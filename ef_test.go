@@ -77,7 +77,7 @@ func TestIntRange(t *testing.T) {
 		fmt.Printf("@@@ uint val - %v\n", val)
 	})
 
-	baseRange := Range(order(3, 0))
+	baseRange := Range(Order(3, 0))
 	asStrings := StreamMap(baseRange, func(v int) string {
 		return fmt.Sprintf("<value as string: %v>", v)
 	})

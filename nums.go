@@ -40,15 +40,8 @@ type AllNumber interface {
 	Number | Complex
 }
 
-type iterInts[I Integer] struct {
-	start, end I
-	index      I
-}
-
-func order[N Number](v1, v2 N) (N, N) {
-
-	// note [bs]: generally I don't think these sorts of number types really
-	// belong in the same package, but for the sake of experimentation eh why not.
+// Order returns the two given numbers so the first is the lower value.
+func Order[N Number](v1, v2 N) (low N, high N) {
 	if v1 < v2 {
 		return v1, v2
 	} else {
@@ -56,6 +49,9 @@ func order[N Number](v1, v2 N) (N, N) {
 	}
 }
 
+// Range returns a stream that consists of values from the start until the end.
+// The end is exclusive - that is, the stream consists of integers less than the
+// end.
 func Range[I Integer](start, end I) Stream[I] {
 	return Stream[I]{
 		src: &iterInts[I]{
@@ -63,6 +59,12 @@ func Range[I Integer](start, end I) Stream[I] {
 			end:   end,
 		},
 	}
+}
+
+// iterInts is a simple iterator that supports the range stream.
+type iterInts[I Integer] struct {
+	start, end I
+	index      I
 }
 
 func (i *iterInts[I]) Next() Opt[I] {
@@ -74,6 +76,7 @@ func (i *iterInts[I]) Next() Opt[I] {
 	return OptOf(v)
 }
 
+// Min returns the lower of the two values.
 func Min[N Number](v1, v2 N) N {
 	if v1 <= v2 {
 		return v1
@@ -81,6 +84,7 @@ func Min[N Number](v1, v2 N) N {
 	return v2
 }
 
+// Max returns the higher of the two values.
 func Max[N Number](v1, v2 N) N {
 	if v1 >= v2 {
 		return v1
