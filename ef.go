@@ -45,6 +45,8 @@ type iterFn[T any] struct {
 }
 
 func newFnStream[T any](fn func() Opt[T]) Stream[T] {
+	// todo [bs]: let's make a version of this public. Having an easy API to slap
+	// together a stream outside this package would be nice.
 	return Stream[T]{
 		src: &iterFn[T]{
 			fn: fn,

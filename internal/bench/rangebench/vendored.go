@@ -47,6 +47,8 @@ func (o opt[T]) Val() T {
 
 func IterEach[T any](iter iter[T], fn func(v T)) {
 	// todo - consider whether this method even should exist.
+
+	// ques [bs]: can I do a quick extended test on that?
 	for {
 		next := iter.next()
 		if !next.IsVal() {

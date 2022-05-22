@@ -45,8 +45,87 @@ func TestNum(t *testing.T) {
 		checkEqualNum(t, MaxNumber[float32](), float32(math.Inf(0)))
 		checkEqualNum(t, MaxNumber[float64](), math.Inf(0))
 	})
+
+	t.Run("Range", func(t *testing.T) {
+		t.Run("Simple", func(t *testing.T) {
+			assert.Equal(
+				t,
+				[]int{-1, 0, 1},
+				Range(-1, 2).ToList())
+		})
+
+		t.Run("Empty", func(t *testing.T) {
+			assert.Equal(
+				t,
+				[]int{},
+				Range(1, 1).ToList())
+		})
+
+		t.Run("OutOfBounds", func(t *testing.T) {
+			assert.Equal(
+				t,
+				[]int{},
+				Range(5, 0).ToList())
+		})
+	})
+
+	t.Run("RangeReverse", func(t *testing.T) {
+		t.Run("Simple", func(t *testing.T) {
+			assert.Equal(
+				t,
+				[]int{2, 1, 0, -1},
+				RangeReverse(-2, 2).ToList())
+		})
+
+		t.Run("Empty", func(t *testing.T) {
+			assert.Equal(
+				t,
+				[]int{},
+				RangeReverse(1, 1).ToList())
+		})
+
+		t.Run("OutOfBounds", func(t *testing.T) {
+			assert.Equal(
+				t,
+				[]int{},
+				RangeReverse(5, 0).ToList())
+		})
+	})
 }
 
 func checkEqualNum[N Number](t *testing.T, expected, actual N) {
 	assert.Equal(t, expected, actual)
+}
+
+func BenchmarkRangeEach(b *testing.B) {
+
+	// compares the performance of using a range for a for loop
+	// over ints vs a conventional for loop.
+
+	// this might be a good time to think some about whether I can use an
+	// alternate structure for streams. Having an opt-fn in an iterator isn't
+	// always a bad idea, but I suspect it is radically less efficient than being
+	// able to just fire up a range and let it do it's thing.
+	//
+	// let's also see if opt itself is adding any overhead - would doing a (val,
+	// ok) be better? let's find out.
+	//
+	// There may be a few other cases where I'd want to
+
+	// let's try another variant of this with
+	b.Run("withRange", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			Range(0, 1024).Each(func(v int) {
+				var _ = v
+			})
+		}
+	})
+
+	b.Run("forLoop", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for j := 0; j < 1024; j++ {
+				var _ = j
+			}
+		}
+	})
 }

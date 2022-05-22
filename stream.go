@@ -59,6 +59,10 @@ func (s Stream[V]) ToList() []V {
 	return l
 }
 
+func (s Stream[V]) Each(fn func(v V)) {
+	StreamEach(s, fn)
+}
+
 func StreamToMap[T comparable, U any](s Stream[Pair[T, U]]) map[T]U {
 	m := make(map[T]U)
 	PStreamEach(s, func(t T, u U) {

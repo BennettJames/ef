@@ -35,7 +35,7 @@ type Number interface {
 	Integer | Float
 }
 
-// AllNumber is an inferace union of all complex and real number types.
+// AllNumber is an interface union of all complex and real number types.
 type AllNumber interface {
 	Number | Complex
 }
@@ -54,27 +54,58 @@ func Order[N Number](v1, v2 N) (low N, high N) {
 // end.
 func Range[I Integer](start, end I) Stream[I] {
 	return Stream[I]{
-		src: &iterInts[I]{
+		src: &rangeStruct[I]{
 			start: start,
 			end:   end,
 		},
 	}
 }
 
-// iterInts is a simple iterator that supports the range stream.
-type iterInts[I Integer] struct {
+// rangeStruct is a simple iterator that supports the range
+type rangeStruct[I Integer] struct {
+	// note [bs]: might iterate a bit more on this to see what pattern is most
+	// efficient / flexible.
 	start, end I
-	index      I
+	offset     I
 }
 
-func (i *iterInts[I]) Next() Opt[I] {
-	v := i.start + i.index
-	if v > i.end {
+func (i *rangeStruct[I]) Next() Opt[I] {
+	v := i.start + i.offset
+	if v >= i.end {
 		return Opt[I]{}
 	}
-	i.index += 1
+	i.offset += 1
 	return OptOf(v)
 }
+
+// RangeReverse iterates down from end to start, exclusive.
+func RangeReverse[I Integer](start, end I) Stream[I] {
+	// ques [bs]: the values in here are not symmetric from range.
+	// is that a bad thing? Wonder if this should be inclusive of start
+	// but not end for symmetry.
+	return Stream[I]{
+		src: &rangeReverseStruct[I]{
+			start: start,
+			end:   end,
+		},
+	}
+}
+
+type rangeReverseStruct[I Integer] struct {
+	start, end I
+	offset     I
+}
+
+func (i *rangeReverseStruct[I]) Next() Opt[I] {
+	v := i.end + i.offset
+	if v <= i.start {
+		return Opt[I]{}
+	}
+	i.offset--
+	return OptOf(v)
+}
+
+// todo [bs]: inclusive range & range reverse
 
 // Min returns the lower of the two values.
 func Min[N Number](v1, v2 N) N {
