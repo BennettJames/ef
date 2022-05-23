@@ -74,38 +74,88 @@ func (i *rangeStruct[I]) Next() Opt[I] {
 	if v >= i.end {
 		return Opt[I]{}
 	}
-	i.offset += 1
+	i.offset++
 	return OptOf(v)
 }
 
-// RangeReverse iterates down from end to start, exclusive.
-func RangeReverse[I Integer](start, end I) Stream[I] {
-	// ques [bs]: the values in here are not symmetric from range.
-	// is that a bad thing? Wonder if this should be inclusive of start
-	// but not end for symmetry.
+// RangeIncl creates a stream that goes from start to end, including the end
+// value.
+func RangeIncl[I Integer](start, end I) Stream[I] {
 	return Stream[I]{
-		src: &rangeReverseStruct[I]{
+		src: &rangeInclStruct[I]{
 			start: start,
 			end:   end,
 		},
 	}
 }
 
-type rangeReverseStruct[I Integer] struct {
+type rangeInclStruct[I Integer] struct {
+	// note [bs]: there's some duplication here, but I sorta suspect (with light
+	// evidence) that just enumerating the struct types for slightly different
+	// behavior is more appropriate, if tedious, and appropriate for a library.
+	// Still would like to quantify that a bit better.
 	start, end I
 	offset     I
 }
 
-func (i *rangeReverseStruct[I]) Next() Opt[I] {
-	v := i.end + i.offset
-	if v <= i.start {
+func (i *rangeInclStruct[I]) Next() Opt[I] {
+	v := i.start + i.offset
+	if v > i.end {
+		return Opt[I]{}
+	}
+	i.offset++
+	return OptOf(v)
+}
+
+// RangeRev produces the same values as Range, but in reverse. Note it is still
+// exclusive on the last value - so the first value is `end - 1``, and the last
+// value is `start`.
+func RangeRev[I Integer](start, end I) Stream[I] {
+	return Stream[I]{
+		src: &rangeRevStruct[I]{
+			start: start,
+			end:   end,
+		},
+	}
+}
+
+type rangeRevStruct[I Integer] struct {
+	start, end I
+	offset     I
+}
+
+func (i *rangeRevStruct[I]) Next() Opt[I] {
+	v := i.end + i.offset - 1
+	if v < i.start {
 		return Opt[I]{}
 	}
 	i.offset--
 	return OptOf(v)
 }
 
-// todo [bs]: inclusive range & range reverse
+// RangeRevIncl produces the same values as RangeIncl, but in reverse.
+func RangeRevIncl[I Integer](start, end I) Stream[I] {
+	return Stream[I]{
+		src: &rangeReverseInclStruct[I]{
+			start: start,
+			end:   end,
+		},
+	}
+}
+
+type rangeReverseInclStruct[I Integer] struct {
+	start, end I
+	offset     I
+}
+
+func (i *rangeReverseInclStruct[I]) Next() Opt[I] {
+	v := i.end + i.offset
+	if v < i.start {
+		return Opt[I]{}
+	}
+	i.offset--
+	return OptOf(v)
+}
 
 // Min returns the lower of the two values.
 func Min[N Number](v1, v2 N) N {

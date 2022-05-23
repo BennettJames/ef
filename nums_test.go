@@ -46,6 +46,8 @@ func TestNum(t *testing.T) {
 		checkEqualNum(t, MaxNumber[float64](), math.Inf(0))
 	})
 
+	// todo [bs]: should audit ranges for sane overflow behavior.
+
 	t.Run("Range", func(t *testing.T) {
 		t.Run("Simple", func(t *testing.T) {
 			assert.Equal(
@@ -69,26 +71,72 @@ func TestNum(t *testing.T) {
 		})
 	})
 
-	t.Run("RangeReverse", func(t *testing.T) {
+	t.Run("RangeIncl", func(t *testing.T) {
 		t.Run("Simple", func(t *testing.T) {
 			assert.Equal(
 				t,
-				[]int{2, 1, 0, -1},
-				RangeReverse(-2, 2).ToList())
+				[]int{-1, 0, 1, 2},
+				RangeIncl(-1, 2).ToList())
 		})
 
 		t.Run("Empty", func(t *testing.T) {
 			assert.Equal(
 				t,
-				[]int{},
-				RangeReverse(1, 1).ToList())
+				[]int{1},
+				RangeIncl(1, 1).ToList())
 		})
 
 		t.Run("OutOfBounds", func(t *testing.T) {
 			assert.Equal(
 				t,
 				[]int{},
-				RangeReverse(5, 0).ToList())
+				RangeIncl(5, 0).ToList())
+		})
+	})
+
+	t.Run("RangeRev", func(t *testing.T) {
+		t.Run("Simple", func(t *testing.T) {
+			assert.Equal(
+				t,
+				[]int{1, 0, -1, -2},
+				RangeRev(-2, 2).ToList())
+		})
+
+		t.Run("Empty", func(t *testing.T) {
+			assert.Equal(
+				t,
+				[]int{},
+				RangeRev(1, 1).ToList())
+		})
+
+		t.Run("OutOfBounds", func(t *testing.T) {
+			assert.Equal(
+				t,
+				[]int{},
+				RangeRev(5, 0).ToList())
+		})
+	})
+
+	t.Run("RangeRevIncl", func(t *testing.T) {
+		t.Run("Simple", func(t *testing.T) {
+			assert.Equal(
+				t,
+				[]int{2, 1, 0, -1, -2},
+				RangeRevIncl(-2, 2).ToList())
+		})
+
+		t.Run("Empty", func(t *testing.T) {
+			assert.Equal(
+				t,
+				[]int{1},
+				RangeRevIncl(1, 1).ToList())
+		})
+
+		t.Run("OutOfBounds", func(t *testing.T) {
+			assert.Equal(
+				t,
+				[]int{},
+				RangeRevIncl(5, 0).ToList())
 		})
 	})
 }
