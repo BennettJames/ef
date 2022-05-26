@@ -28,6 +28,7 @@ func StreamOf[T any, S Streamable[T]](s S) Stream[T] {
 	case Stream[T]:
 		return narrowed
 	case func() Opt[T]:
+		// fixme [bs]: I don't think this works certain nil patterns
 		return newFnStream(narrowed)
 	default:
 		panic("unreachable")
@@ -138,7 +139,7 @@ func StreamFilter[T any](s Stream[T], fn func(v T) bool) Stream[T] {
 		// little uncomfortable. Let's think about safer conditions.
 		for {
 			next := s.src.Next()
-			if !next.IsVal() || fn(next.Val()) {
+			if !next.IsVal() || fn(next.Get()) {
 				return next
 			}
 		}
@@ -184,7 +185,7 @@ func IterEach[T any](iter Iter[T], fn func(v T)) {
 		if !next.IsVal() {
 			return
 		} else {
-			fn(next.Val())
+			fn(next.Get())
 		}
 	}
 }
@@ -256,3 +257,5 @@ func StreamStats[N Number](s Stream[N]) SummaryStats[N] {
 	}
 	return stats
 }
+
+// todo [bs]: let's add a few simple things like find, any, first, etc.

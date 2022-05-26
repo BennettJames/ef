@@ -145,6 +145,8 @@ func checkEqualNum[N Number](t *testing.T, expected, actual N) {
 	assert.Equal(t, expected, actual)
 }
 
+var updater int
+
 func BenchmarkRangeEach(b *testing.B) {
 
 	// compares the performance of using a range for a for loop
@@ -161,19 +163,119 @@ func BenchmarkRangeEach(b *testing.B) {
 	// There may be a few other cases where I'd want to
 
 	// let's try another variant of this with
-	b.Run("withRange", func(b *testing.B) {
+
+	max := 1024 * 8
+
+	b.Run("forLoop", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			Range(0, 1024).Each(func(v int) {
-				var _ = v
+			for j := 0; j < max; j++ {
+				updater = j
+			}
+		}
+	})
+
+	// b.Run("eachStreamerRange", func(b *testing.B) {
+	// 	for i := 0; i < b.N; i++ {
+	// 		eachStreamerRange(0, max).each(func(i int) {
+	// 			updater = i
+	// 		})
+	// 	}
+	// })
+	b.Run("eachStreamerRangePtr", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			eachStreamerRangePtr(0, max).each(func(i int) {
+				updater = i
 			})
 		}
 	})
 
-	b.Run("forLoop", func(b *testing.B) {
+	b.Run("streamSliceInterfacePtr", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			for j := 0; j < 1024; j++ {
-				var _ = j
+			var r eachStreamer = &eachStreamerRangeStruct{
+				start: 0,
+				end:   max,
 			}
+			r.each(func(i int) {
+				updater = i
+			})
 		}
 	})
+
+	b.Run("streamSliceGenericInterfacePtr", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var r eachStreamerGeneric[int] = &eachStreamerRangeGeneric[int]{
+				start: 0,
+				end:   max,
+			}
+			r.each(func(i int) {
+				updater = i
+			})
+		}
+	})
+
+	b.Run("rangeFuncDirectStruct", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			r := eachStreamerRangeStruct{
+				start: 0,
+				end:   max,
+			}
+			r.each(func(i int) {
+				updater = i
+			})
+		}
+	})
+
+	b.Run("rangeFuncPtrStruct", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			r := &eachStreamerRangeStruct{
+				start: 0,
+				end:   max,
+			}
+			r.each(func(i int) {
+				updater = i
+			})
+		}
+	})
+}
+
+type eachStreamer interface {
+	each(func(int))
+}
+
+type eachStreamerGeneric[T Number] interface {
+	each(func(T))
+}
+
+func eachStreamerRange(start, end int) eachStreamer {
+	return eachStreamerRangeStruct{
+		start: start,
+		end:   end,
+	}
+}
+
+func eachStreamerRangePtr(start, end int) eachStreamer {
+	return &eachStreamerRangeStruct{
+		start: start,
+		end:   end,
+	}
+}
+
+type eachStreamerRangeStruct struct {
+	start, end int
+}
+
+func (s eachStreamerRangeStruct) each(fn func(int)) {
+	for i := s.start; i < s.end; i++ {
+		fn(i)
+	}
+}
+
+type eachStreamerRangeGeneric[T Number] struct {
+	start, end T
+}
+
+func (s eachStreamerRangeGeneric[T]) each(fn func(T)) {
+	for i := s.start; i < s.end; i++ {
+		fn(i)
+	}
 }
