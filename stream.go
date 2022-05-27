@@ -139,7 +139,7 @@ func StreamFilter[T any](s Stream[T], fn func(v T) bool) Stream[T] {
 		// little uncomfortable. Let's think about safer conditions.
 		for {
 			next := s.src.Next()
-			if !next.IsVal() || fn(next.Get()) {
+			if !next.HasVal() || fn(next.Get()) {
 				return next
 			}
 		}
@@ -182,7 +182,7 @@ func IterEach[T any](iter Iter[T], fn func(v T)) {
 	// todo - consider whether this method even should exist.
 	for {
 		next := iter.Next()
-		if !next.IsVal() {
+		if !next.HasVal() {
 			return
 		} else {
 			fn(next.Get())
