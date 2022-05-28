@@ -1,4 +1,4 @@
-module github.com/bennettjames/ef
+module github.com/BennettJames/ef
 
 go 1.18
 
