@@ -10,12 +10,12 @@ func TestMap(t *testing.T) {
 }
 
 func TestScratch(t *testing.T) {
-	var iter Iter[int] = &listIter[int]{
+	var iter iter[int] = &listIter[int]{
 		list:      []int{1, 2, 3},
 		nextIndex: 0,
 	}
 
-	IterEach(iter, func(v int) {
+	StreamEach(StreamOf[int](iter.Next), func(v int) {
 		fmt.Println("@@@ value is - ", v)
 	})
 }

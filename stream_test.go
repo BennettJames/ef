@@ -1,34 +1,63 @@
 package ef
 
 import (
-	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestStreamStats(t *testing.T) {
-	// I find some of the casting behavior here a bit suprising. Both that it
-	// appears to let me only specify one type arg for streamOf, and that I had to
-	// at all. Let's see if I can understand why.
-	//
-	// - First, just want a sense if maybe there are times a second type argument
-	// can be unspecified because it's obvious when the first is not.
-	//
-	// - also want a sense for why the type arg is even needed. that's going to
-	// be harder. I suspect that inference is probably complicated, and hard to
-	// guess when you push limits.
-	ary := []int{5, 10, 9, 8, 22}
-	s := StreamOf[int](ary)
-	stats := StreamStats(s)
-	fmt.Printf("got stats - %+v\n", stats)
+func TestStream(t *testing.T) {
+	t.Run("StreamOf", func(t *testing.T) {
+		t.Run("Slice", func(t *testing.T) {
+			st := StreamOf[int]([]int{1, 2, 3})
+			assert.Equal(t, []int{1, 2, 3}, st.ToList())
+		})
 
-	// so, I think this clarifies the first point - trailing type args can be
-	// elided if
-	//
-	// that's good to know - that might actually simplify the json thing you were
-	// trying to do.
-	var _ int32 = inferTest[int32, string]("hello")
-}
+		t.Run("Pointer", func(t *testing.T) {
+			t.Run("Value", func(t *testing.T) {
+				st := StreamOf[int](Ptr(1))
+				assert.Equal(t, []int{1}, st.ToList())
+			})
 
-func inferTest[N Number, T any, S any](s S) N {
-	return MaxNumber[N]()
+			t.Run("Nil", func(t *testing.T) {
+				var value *int
+				st := StreamOf[int](value)
+				assert.Equal(t, []int{}, st.ToList())
+			})
+		})
+
+		t.Run("Optional", func(t *testing.T) {
+			t.Run("Value", func(t *testing.T) {
+				st := StreamOf[int](OptOf(1))
+				assert.Equal(t, []int{1}, st.ToList())
+			})
+
+			t.Run("Empty", func(t *testing.T) {
+				st := StreamOf[int](OptEmpty[int]())
+				assert.Equal(t, []int{}, st.ToList())
+			})
+		})
+
+		t.Run("Stream", func(t *testing.T) {
+			st1 := StreamOf[int]([]int{1, 2, 3})
+			st2 := StreamOf[int](st1)
+			assert.Equal(t, []int{1, 2, 3}, st2.ToList())
+		})
+
+		// note [bs]: now seems like a good time to dive a littler deeper into
+		// certain nil behavior w/ functions.
+		t.Run("Func", func(t *testing.T) {
+			counter := 1
+			fn := func() Opt[int] {
+				if counter > 3 {
+					return OptEmpty[int]()
+				}
+				val := counter
+				counter++
+				return OptOf(val)
+			}
+			st := StreamOf[int](fn)
+			assert.Equal(t, []int{1, 2, 3}, st.ToList())
+		})
+	})
 }

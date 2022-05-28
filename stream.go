@@ -4,42 +4,90 @@ import (
 	"fmt"
 )
 
-// ques [bs]: do I want stream to be a concrete or abstract type?
+type (
+	Stream[T any] struct {
+		// todo [bs]: consider potentially holding an "eachable" instead - that is,
+		// something that can be passed a fn that will be called on each source
+		// value. Better for lists and other cases as well; can still convert an
+		// iter-interface into that when it's appropriate.
 
-type Stream[T any] struct {
-	src Iter[T]
-}
+		src iter[T]
+	}
 
-type Streamable[T any] interface {
-	~[]T | ~*T | Opt[T] | Stream[T] | ~func() Opt[T]
-}
+	iter[T any] interface {
+		Next() Opt[T]
+	}
 
+	Streamable[T any] interface {
+		~[]T | ~*T | Opt[T] | Stream[T] | ~func() Opt[T]
+	}
+)
+
+// StreamOf creates a stream out of several types that can be converted to a
+// stream.
 func StreamOf[T any, S Streamable[T]](s S) Stream[T] {
 	// note [bs]: for some of these, may be better to custom define an iterator
 	// rather than re-using the list iterator. Also, some of the indirection here
 	// is probably silly and a bit inefficient.
 	switch narrowed := (interface{})(s).(type) {
 	case []T:
-		return newListStream(narrowed)
+		return StreamOfSlice(narrowed)
 	case *T:
-		return newListStream(OptOfPtr(narrowed).ToList())
+		return StreamOfSlice(OptOfPtr(narrowed).ToList())
 	case Opt[T]:
-		return newListStream(narrowed.ToList())
+		return StreamOfSlice(narrowed.ToList())
 	case Stream[T]:
 		return narrowed
 	case func() Opt[T]:
 		// fixme [bs]: I don't think this works certain nil patterns
-		return newFnStream(narrowed)
+		return StreamOfFn(narrowed)
 	default:
 		panic("unreachable")
 	}
+}
+
+// todo [bs]: need to add some other methods, like the ability to combine
+// streams.
+
+// StreamOfSlice returns a stream of the values in the provided slice.
+func StreamOfSlice[T any](values []T) Stream[T] {
+	return Stream[T]{
+		src: &listIter[T]{
+			list: values,
+		},
+	}
+}
+
+// StreamOfSliceIndexed returns a stream of the values in the provided slice.
+func StreamOfSliceIndexed[T any](values []T) Stream[Pair[int, T]] {
+	return Stream[Pair[int, T]]{
+		src: &listIterIndexed[T]{
+			list: values,
+		},
+	}
+}
+
+// StreamOfFn takes a function that yields an optional, and builds a stream
+// around it. The stream will repeatedly call the function until it yield an
+// empty optional, at which point the source will be considered exhausted.
+func StreamOfFn[T any](fnSrc func() Opt[T]) Stream[T] {
+	return Stream[T]{
+		src: &iterFn[T]{
+			fn: fnSrc,
+		},
+	}
+}
+
+// StreamEmpty returns an empty stream.
+func StreamEmpty[T any]() Stream[T] {
+	return StreamOfSlice([]T{})
 }
 
 func NewPStream[T comparable, U any](m map[T]U) Stream[Pair[T, U]] {
 	// note [bs]: this is inefficient. it has to create a list of the pairs.
 	// Ideally there'd be a way to implement iter w/out having to reify the
 	// full set of pairs.
-	return newListStream(mapToList(m))
+	return StreamOfSlice(mapToList(m))
 }
 
 func mapToList[T comparable, U any](m map[T]U) []Pair[T, U] {
@@ -98,7 +146,8 @@ func StreamToMapMerge[T comparable, U any](
 }
 
 func StreamMap[T, U any](s Stream[T], fn func(v T) U) Stream[U] {
-	return newFnStream(func() Opt[U] {
+
+	return StreamOfFn(func() Opt[U] {
 		return OptMap(s.src.Next(), func(v T) U {
 			return fn(v)
 		})
@@ -115,7 +164,7 @@ func PStreamMap[T, U, V, W any](
 }
 
 func StreamPeek[T any](s Stream[T], fn func(v T)) Stream[T] {
-	return newFnStream(func() Opt[T] {
+	return StreamOfFn(func() Opt[T] {
 		next := s.src.Next()
 		next.IfVal(func(v T) {
 			fn(v)
@@ -134,12 +183,10 @@ func PStreamPeek[T, U any](
 }
 
 func StreamFilter[T any](s Stream[T], fn func(v T) bool) Stream[T] {
-	return newFnStream(func() Opt[T] {
-		// note [bs]: I know this isn't actually a risk, but this makes me a
-		// little uncomfortable. Let's think about safer conditions.
+	return StreamOfFn(func() Opt[T] {
 		for {
 			next := s.src.Next()
-			if !next.HasVal() || fn(next.Get()) {
+			if next.IsEmpty() || fn(next.UnsafeGet()) {
 				return next
 			}
 		}
@@ -169,25 +216,23 @@ func StreamToPairs[T any, U any, V any](
 }
 
 func StreamEach[T any](s Stream[T], fn func(v T)) {
-	IterEach(s.src, fn)
+	for {
+		next := s.src.Next()
+		if next.IsEmpty() {
+			return
+		}
+		// note [bs]: in this case, I sorta suspect the unsafe get is probably
+		// a bit more efficient and should be used instead.
+		next.IfVal(fn)
+		// fn(next.UnsafeGet())
+	}
+
 }
 
 func PStreamEach[T, U any](s Stream[Pair[T, U]], fn func(t T, v U)) {
-	IterEach(s.src, func(p Pair[T, U]) {
-		fn(p.Get())
+	StreamEach(s, func(p Pair[T, U]) {
+		fn(p.First, p.Second)
 	})
-}
-
-func IterEach[T any](iter Iter[T], fn func(v T)) {
-	// todo - consider whether this method even should exist.
-	for {
-		next := iter.Next()
-		if !next.HasVal() {
-			return
-		} else {
-			fn(next.Get())
-		}
-	}
 }
 
 func StreamReduce[T any, U any](

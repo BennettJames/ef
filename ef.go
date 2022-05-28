@@ -5,10 +5,6 @@ import (
 )
 
 type (
-	Iter[T any] interface {
-		Next() Opt[T]
-	}
-
 	Pair[T1, T2 any] struct {
 		First  T1
 		Second T2
@@ -44,16 +40,6 @@ type iterFn[T any] struct {
 	fn func() Opt[T]
 }
 
-func newFnStream[T any](fn func() Opt[T]) Stream[T] {
-	// todo [bs]: let's make a version of this public. Having an easy API to slap
-	// together a stream outside this package would be nice.
-	return Stream[T]{
-		src: &iterFn[T]{
-			fn: fn,
-		},
-	}
-}
-
 func (i *iterFn[T]) Next() Opt[T] {
 	return i.fn()
 }
@@ -63,14 +49,6 @@ type listIter[T any] struct {
 	nextIndex int
 }
 
-func newListStream[T any](values []T) Stream[T] {
-	return Stream[T]{
-		src: &listIter[T]{
-			list: values,
-		},
-	}
-}
-
 func (l *listIter[T]) Next() Opt[T] {
 	if l.nextIndex >= len(l.list) {
 		return Opt[T]{}
@@ -78,6 +56,21 @@ func (l *listIter[T]) Next() Opt[T] {
 	v := l.list[l.nextIndex]
 	l.nextIndex++
 	return OptOf(v)
+}
+
+type listIterIndexed[T any] struct {
+	list      []T
+	nextIndex int
+}
+
+func (l *listIterIndexed[T]) Next() Opt[Pair[int, T]] {
+	index := l.nextIndex
+	if index >= len(l.list) {
+		return OptEmpty[Pair[int, T]]()
+	}
+	v := l.list[index]
+	l.nextIndex++
+	return OptOf(PairOf(index, v))
 }
 
 // Ptr wraps the provided value as a . Mostly useful for primitives in contexts

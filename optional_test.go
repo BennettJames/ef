@@ -91,12 +91,12 @@ func TestOptional(t *testing.T) {
 		t.Run("Val", func(t *testing.T) {
 			assert.Equal(t,
 				"hello",
-				OptOf("hello").Get())
+				OptOf("hello").UnsafeGet())
 		})
 
 		t.Run("Empty", func(t *testing.T) {
 			assert.PanicsWithError(t, (&UnexpectedNilError{}).Error(), func() {
-				OptEmpty[string]().Get()
+				OptEmpty[string]().UnsafeGet()
 			})
 		})
 	})
