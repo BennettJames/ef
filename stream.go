@@ -2,6 +2,7 @@ package ef
 
 import (
 	"fmt"
+	"strings"
 )
 
 type (
@@ -13,6 +14,13 @@ type (
 
 		src iter[T]
 	}
+
+	// todo [bs]: let's take the following interface out for a spin at some point.
+	// aliases like this always seem to give me a little trouble so I'm not
+	// _quite_ sure it's a good idea yet, but I'd like to play around and see how
+	// it pans out.
+
+	// PStream[T comparable, U any] Stream[Pair[T, U]]
 
 	iter[T any] interface {
 		Next() Opt[T]
@@ -42,12 +50,9 @@ func StreamOf[T any, S Streamable[T]](s S) Stream[T] {
 		// fixme [bs]: I don't think this works certain nil patterns
 		return StreamOfFn(narrowed)
 	default:
-		panic("unreachable")
+		panic(&UnreachableError{})
 	}
 }
-
-// todo [bs]: need to add some other methods, like the ability to combine
-// streams.
 
 // StreamOfSlice returns a stream of the values in the provided slice.
 func StreamOfSlice[T any](values []T) Stream[T] {
@@ -58,8 +63,8 @@ func StreamOfSlice[T any](values []T) Stream[T] {
 	}
 }
 
-// StreamOfSliceIndexed returns a stream of the values in the provided slice.
-func StreamOfSliceIndexed[T any](values []T) Stream[Pair[int, T]] {
+// StreamOfIndexedSlice returns a stream of the values in the provided slice.
+func StreamOfIndexedSlice[T any](values []T) Stream[Pair[int, T]] {
 	return Stream[Pair[int, T]]{
 		src: &listIterIndexed[T]{
 			list: values,
@@ -83,7 +88,9 @@ func StreamEmpty[T any]() Stream[T] {
 	return StreamOfSlice([]T{})
 }
 
-func NewPStream[T comparable, U any](m map[T]U) Stream[Pair[T, U]] {
+// StreamOfMap creates a stream out of a map, where each entry in the stream is
+// a pair of key->values foudn in the original map.
+func StreamOfMap[T comparable, U any](m map[T]U) Stream[Pair[T, U]] {
 	// note [bs]: this is inefficient. it has to create a list of the pairs.
 	// Ideally there'd be a way to implement iter w/out having to reify the
 	// full set of pairs.
@@ -304,3 +311,32 @@ func StreamStats[N Number](s Stream[N]) SummaryStats[N] {
 }
 
 // todo [bs]: let's add a few simple things like find, any, first, etc.
+
+// todo [bs]: add a stream concat system
+
+// StreamJoinString combines a stream of strings to a single string, adding
+// `sep` between each string.
+func StreamJoinString(st Stream[string], sep string) string {
+	var sb strings.Builder
+	first := true
+	StreamEach(st, func(v string) {
+		if !first {
+			sb.WriteString(sep)
+		} else {
+			first = false
+		}
+		sb.WriteString(v)
+	})
+	return sb.String()
+}
+
+func StreamAppend[T any, S Streamable[T]](s1 Stream[T], s2 S) Stream[T] {
+	// note [bs]: not really interested in this specific API per-se, just
+	// experimenting.
+
+	panic("unimplemented")
+}
+
+type multiStream[T any] struct {
+	streams []Stream[T]
+}

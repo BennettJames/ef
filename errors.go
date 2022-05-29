@@ -95,14 +95,21 @@ func Try3[T, U, V any](t T, u U, v V, err error) (T, U, V) {
 	return t, u, v
 }
 
-func Assert(check bool, msg string) {
+func Assert(check bool) {
+	if !check {
+		// todo [bs]: wrap this
+		panic(fmt.Errorf("Failed assertion"))
+	}
+}
+
+func AssertMsg(check bool, msg string) {
 	if !check {
 		// todo [bs]: wrap this
 		panic(msg)
 	}
 }
 
-func Assertf(check bool, msg string, a ...any) {
+func AssertMsgf(check bool, msg string, a ...any) {
 	if !check {
 		// todo [bs]: wrap this better
 		panic(fmt.Errorf(msg, a...))

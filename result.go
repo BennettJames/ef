@@ -143,7 +143,7 @@ func ResVal[T any](val T) Res[T] {
 func ResDeref[T any](r Res[*T]) Res[T] {
 	// ques [bs]: how happy am I with this behavior _really_?
 	return ResMap(r, func(val *T) T {
-		return Deref(val)
+		return DeRef(val)
 	})
 }
 

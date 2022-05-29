@@ -5,73 +5,13 @@ import (
 )
 
 type (
-	Pair[T1, T2 any] struct {
-		First  T1
-		Second T2
-	}
-
 	// Void is a non-instantiable interface. Mostly useful when specifying type
 	// parameters when one type is never used - e.g. you have to shoehorn in a
-	// `Res[T]`` type where T is never used, `Res[Void]` can be.
+	// `Res[T]` type where T is never used, `Res[Void]` can be.
 	Void interface {
 		neverImplented()
 	}
 )
-
-func PairOf[T1, T2 any](
-	left T1,
-	right T2,
-) Pair[T1, T2] {
-	return Pair[T1, T2]{
-		First:  left,
-		Second: right,
-	}
-}
-
-func (p Pair[T1, T2]) Get() (T1, T2) {
-	return p.First, p.Second
-}
-
-func (p Pair[T1, T2]) String() string {
-	return fmt.Sprintf("(%v, %v)", p.First, p.Second)
-}
-
-type iterFn[T any] struct {
-	fn func() Opt[T]
-}
-
-func (i *iterFn[T]) Next() Opt[T] {
-	return i.fn()
-}
-
-type listIter[T any] struct {
-	list      []T
-	nextIndex int
-}
-
-func (l *listIter[T]) Next() Opt[T] {
-	if l.nextIndex >= len(l.list) {
-		return Opt[T]{}
-	}
-	v := l.list[l.nextIndex]
-	l.nextIndex++
-	return OptOf(v)
-}
-
-type listIterIndexed[T any] struct {
-	list      []T
-	nextIndex int
-}
-
-func (l *listIterIndexed[T]) Next() Opt[Pair[int, T]] {
-	index := l.nextIndex
-	if index >= len(l.list) {
-		return OptEmpty[Pair[int, T]]()
-	}
-	v := l.list[index]
-	l.nextIndex++
-	return OptOf(PairOf(index, v))
-}
 
 // Ptr wraps the provided value as a . Mostly useful for primitives in contexts
 // where you'd otherwise have to declare an extra variable.
@@ -89,31 +29,32 @@ func Ptr[V any](val V) *V {
 	return &val
 }
 
-// Deref does a "safe dereferencing" of a pointer. If the pointer points to a
+// DeRef does a "safe dereferencing" of a pointer. If the pointer points to a
 // value, the value is returned; if it is null, it returns a zero-value for the
 // underlying type.
 //
 // Example:
 //
-//     ef.Deref(nil)             // == ""
-//     ef.Deref(ef.Ptr("hello")) // == "hello"
+//     ef.DeRef(nil)             // == ""
+//     ef.DeRef(ef.Ptr("hello")) // == "hello"
 //
-func Deref[V any](val *V) V {
+func DeRef[V any](val *V) V {
 	if val == nil {
 		return *new(V)
 	}
 	return *val
 }
 
-func derefFn[V any]() func(*V) V {
-	// so - I'm not yet sure if this is worth keeping, but it does reveal an
-	// interesting constraint. A generic function cannot be be used as a "bare"
-	// value; it must be wrapped. Making a function like this and forcing the caller
-	// to specify the generic parameter does work, however.
-	return func(val *V) V {
-		if val == nil {
-			return *new(V)
-		}
-		return *val
+// AsType applies a type assertion to the given value, and panics if it fails.
+func AsType[T any](val any) T {
+	// ques [bs]: should there be a similar function for result and / or optional?
+	// Yeah, probably. I'd add this isn't really super useful as-is - just plain type
+	// asserts achieve the same thing. I think it can make sense as part of a broader
+	// ecosystem of asserts and mappings within a space, but not standalone.
+	asT, isT := val.(T)
+	if !isT {
+		// todo [bs]: custom error type
+		panic(fmt.Errorf("bad type - expected '%T', got '%T'", new(T), val))
 	}
+	return asT
 }
