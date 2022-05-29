@@ -36,3 +36,22 @@ func (l *listIterIndexed[T]) Next() Opt[Pair[int, T]] {
 	l.nextIndex++
 	return OptOf(PairOf(index, v))
 }
+
+type multiStream[T any] struct {
+	streams     []Stream[T]
+	streamIndex int
+}
+
+func (i *multiStream[T]) Next() Opt[T] {
+	// ques [bs]: I feel like some of the internal iterator patterns I've used here
+	// are a bit sloppy / inconvenient. Is that a sign of bad / weird design, or more
+	// a consequence of how this is trying to abstract ugly access patterns?
+	for ; i.streamIndex < len(i.streams); i.streamIndex++ {
+		nextStream := i.streams[i.streamIndex]
+		nextVal := nextStream.src.Next()
+		if !nextVal.IsEmpty() {
+			return nextVal
+		}
+	}
+	return OptEmpty[T]()
+}

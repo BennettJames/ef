@@ -53,21 +53,21 @@ func TestNum(t *testing.T) {
 			assert.Equal(
 				t,
 				[]int{-1, 0, 1},
-				Range(-1, 2).ToList())
+				Range(-1, 2).ToSlice())
 		})
 
 		t.Run("Empty", func(t *testing.T) {
 			assert.Equal(
 				t,
 				[]int{},
-				Range(1, 1).ToList())
+				Range(1, 1).ToSlice())
 		})
 
 		t.Run("OutOfBounds", func(t *testing.T) {
 			assert.Equal(
 				t,
 				[]int{},
-				Range(5, 0).ToList())
+				Range(5, 0).ToSlice())
 		})
 	})
 
@@ -76,21 +76,21 @@ func TestNum(t *testing.T) {
 			assert.Equal(
 				t,
 				[]int{-1, 0, 1, 2},
-				RangeIncl(-1, 2).ToList())
+				RangeIncl(-1, 2).ToSlice())
 		})
 
 		t.Run("Empty", func(t *testing.T) {
 			assert.Equal(
 				t,
 				[]int{1},
-				RangeIncl(1, 1).ToList())
+				RangeIncl(1, 1).ToSlice())
 		})
 
 		t.Run("OutOfBounds", func(t *testing.T) {
 			assert.Equal(
 				t,
 				[]int{},
-				RangeIncl(5, 0).ToList())
+				RangeIncl(5, 0).ToSlice())
 		})
 	})
 
@@ -99,21 +99,21 @@ func TestNum(t *testing.T) {
 			assert.Equal(
 				t,
 				[]int{1, 0, -1, -2},
-				RangeRev(-2, 2).ToList())
+				RangeRev(-2, 2).ToSlice())
 		})
 
 		t.Run("Empty", func(t *testing.T) {
 			assert.Equal(
 				t,
 				[]int{},
-				RangeRev(1, 1).ToList())
+				RangeRev(1, 1).ToSlice())
 		})
 
 		t.Run("OutOfBounds", func(t *testing.T) {
 			assert.Equal(
 				t,
 				[]int{},
-				RangeRev(5, 0).ToList())
+				RangeRev(5, 0).ToSlice())
 		})
 	})
 
@@ -122,21 +122,21 @@ func TestNum(t *testing.T) {
 			assert.Equal(
 				t,
 				[]int{2, 1, 0, -1, -2},
-				RangeRevIncl(-2, 2).ToList())
+				RangeRevIncl(-2, 2).ToSlice())
 		})
 
 		t.Run("Empty", func(t *testing.T) {
 			assert.Equal(
 				t,
 				[]int{1},
-				RangeRevIncl(1, 1).ToList())
+				RangeRevIncl(1, 1).ToSlice())
 		})
 
 		t.Run("OutOfBounds", func(t *testing.T) {
 			assert.Equal(
 				t,
 				[]int{},
-				RangeRevIncl(5, 0).ToList())
+				RangeRevIncl(5, 0).ToSlice())
 		})
 	})
 }

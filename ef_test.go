@@ -37,3 +37,25 @@ func TestAsType(t *testing.T) {
 		})
 	})
 }
+
+func TestSlice(t *testing.T) {
+	t.Run("Simple", func(t *testing.T) {
+		expected := []Pair[string, int]{
+			PairOf("a", 1),
+			PairOf("b", 2),
+		}
+		assert.Equal(t,
+			expected,
+			Slice(
+				PairOf("a", 1),
+				PairOf("b", 2),
+			))
+	})
+
+	t.Run("Empty", func(t *testing.T) {
+		expected := []Pair[string, int]{}
+		assert.Equal(t,
+			expected,
+			Slice[Pair[string, int]]())
+	})
+}

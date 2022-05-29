@@ -34,10 +34,9 @@ type (
 // StreamOf creates a stream out of several types that can be converted to a
 // stream.
 func StreamOf[T any, S Streamable[T]](s S) Stream[T] {
-	// note [bs]: for some of these, may be better to custom define an iterator
-	// rather than re-using the list iterator. Also, some of the indirection here
-	// is probably silly and a bit inefficient.
 	switch narrowed := (interface{})(s).(type) {
+	case nil:
+		return StreamOfSlice(Slice[T]())
 	case []T:
 		return StreamOfSlice(narrowed)
 	case *T:
@@ -105,27 +104,37 @@ func mapToList[T comparable, U any](m map[T]U) []Pair[T, U] {
 	return l
 }
 
-func (s Stream[V]) ToList() []V {
+// Each performs the provided fn on each element in the stream.
+func (s Stream[V]) Each(fn func(v V)) {
+	for next := s.src.Next(); !next.IsEmpty(); next = s.src.Next() {
+		fn(next.UnsafeGet())
+	}
+}
+
+// ToSlice puts every value of the stream into a slice.
+func (s Stream[V]) ToSlice() []V {
 	// todo [bs]: should add facility so streams of known size can use
 	// that to seed size here.
 	l := make([]V, 0)
-	StreamEach(s, func(v V) {
+	s.Each(func(v V) {
 		l = append(l, v)
 	})
 	return l
 }
 
-func (s Stream[V]) Each(fn func(v V)) {
-	StreamEach(s, fn)
-}
-
+// StreamToMap takes each value in a pair-stream, and turns it into a map where
+// the keys are the first value in the pairs, and the values the second.
+//
+// Note that this cannot handle key collisions - if two pairs have the same `T`
+// value, this will panic. Use `StreamToMapMerge` to resolve collisions.
 func StreamToMap[T comparable, U any](s Stream[Pair[T, U]]) map[T]U {
 	m := make(map[T]U)
-	PStreamEach(s, func(t T, u U) {
+	EachPair(s, func(t T, u U) {
 		if existing, exists := m[t]; !exists {
 			m[t] = u
 		} else {
-			panic(fmt.Sprintf(
+			// todo [bs]: probably want a custom error for this
+			panic(fmt.Errorf(
 				"StreamToMap: duplicate values found for key '%v' - ['%v', '%v']",
 				t, u, existing))
 		}
@@ -141,7 +150,7 @@ func StreamToMapMerge[T comparable, U any](
 	merge func(key T, val1, val2 U) U,
 ) map[T]U {
 	m := make(map[T]U)
-	PStreamEach(s, func(t T, u U) {
+	EachPair(s, func(t T, u U) {
 		if existing, exists := m[t]; !exists {
 			m[t] = u
 		} else {
@@ -222,22 +231,12 @@ func StreamToPairs[T any, U any, V any](
 	}
 }
 
-func StreamEach[T any](s Stream[T], fn func(v T)) {
-	for {
-		next := s.src.Next()
-		if next.IsEmpty() {
-			return
-		}
-		// note [bs]: in this case, I sorta suspect the unsafe get is probably
-		// a bit more efficient and should be used instead.
-		next.IfVal(fn)
-		// fn(next.UnsafeGet())
-	}
-
+func Each[T any, S Streamable[T]](s S, fn func(v T)) {
+	StreamOf[T](s).Each(fn)
 }
 
-func PStreamEach[T, U any](s Stream[Pair[T, U]], fn func(t T, v U)) {
-	StreamEach(s, func(p Pair[T, U]) {
+func EachPair[T, U any, S Streamable[Pair[T, U]]](s S, fn func(t T, u U)) {
+	Each(s, func(p Pair[T, U]) {
 		fn(p.First, p.Second)
 	})
 }
@@ -256,33 +255,13 @@ func StreamReduceInit[T any, U any](
 	initVal U,
 	merge func(total U, val T) U,
 ) U {
-	StreamEach(s, func(v T) {
+	s.Each(func(v T) {
 		initVal = merge(initVal, v)
 	})
 	return initVal
 }
 
-func StreamAverage[N Number](s Stream[N]) N {
-	// note [bs]: this is not mathematically sound w.r.t to overflow, among other
-	// things. Let's just rip off a superior implementation like in java.
-
-	var total N
-	cnt := int64(0)
-
-	StreamEach(s, func(v N) {
-		total += v
-	})
-
-	// note [bs]: not really convinced this is legal.
-	return total / N(cnt)
-}
-
-// so - let's do a bit of research into how to do average correctly.
-//
-// I think total simply has no guarantees about overflow, unless you go
-// out of your way to check it.
-
-// SummaryStats
+// SummaryStats contains a set of data about the values in a stream of numbers.
 //
 // Note that this is not safe with overflow - if the sum exceeds the number
 // type, then overflow will occur and total / average will not be accurate.
@@ -293,12 +272,15 @@ type SummaryStats[N Number] struct {
 	Min, Max N
 }
 
+// StreamStats calculates the SummaryStats object for a stream of numbers.
 func StreamStats[N Number](s Stream[N]) SummaryStats[N] {
+	// note [bs]: possible it'd just be better to make these optionals rather than
+	// have default vals for them.
 	stats := SummaryStats[N]{
 		Min: MaxNumber[N](),
 		Max: MinNumber[N](),
 	}
-	StreamEach(s, func(v N) {
+	s.Each(func(v N) {
 		stats.Size++
 		stats.Total += v
 		stats.Min = Min(stats.Min, v)
@@ -310,16 +292,12 @@ func StreamStats[N Number](s Stream[N]) SummaryStats[N] {
 	return stats
 }
 
-// todo [bs]: let's add a few simple things like find, any, first, etc.
-
-// todo [bs]: add a stream concat system
-
 // StreamJoinString combines a stream of strings to a single string, adding
 // `sep` between each string.
 func StreamJoinString(st Stream[string], sep string) string {
 	var sb strings.Builder
 	first := true
-	StreamEach(st, func(v string) {
+	st.Each(func(v string) {
 		if !first {
 			sb.WriteString(sep)
 		} else {
@@ -330,13 +308,14 @@ func StreamJoinString(st Stream[string], sep string) string {
 	return sb.String()
 }
 
-func StreamAppend[T any, S Streamable[T]](s1 Stream[T], s2 S) Stream[T] {
-	// note [bs]: not really interested in this specific API per-se, just
-	// experimenting.
-
-	panic("unimplemented")
+// StreamConcat combines any number of streams into a single stream.
+func StreamConcat[T any](streams ...Stream[T]) Stream[T] {
+	// todo [bs]: consider inspecting / flattening any concat-ed streams here
+	return Stream[T]{
+		src: &multiStream[T]{
+			streams: streams,
+		},
+	}
 }
 
-type multiStream[T any] struct {
-	streams []Stream[T]
-}
+// todo [bs]: let's add a few simple things like find, any, first, etc.

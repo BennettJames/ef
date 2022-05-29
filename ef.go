@@ -58,3 +58,19 @@ func AsType[T any](val any) T {
 	}
 	return asT
 }
+
+// Slice returns a slice of the given values. This is a bit of a gimmick -
+// basically type inference lets you skip specifying types in some cases,
+// which is of dubious usefulness.
+//
+// Example:
+//
+//   _ = []string{"a", "b", "c"}
+//   _ = Slice("a", "b", "c")
+//
+func Slice[T any](vals ...T) []T {
+	if len(vals) == 0 {
+		return make([]T, 0)
+	}
+	return vals
+}
