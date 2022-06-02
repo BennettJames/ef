@@ -162,19 +162,41 @@ func TestOptional(t *testing.T) {
 	t.Run("IfVal", func(t *testing.T) {
 		t.Run("Val", func(t *testing.T) {
 			run := false
-			OptOf("hello").IfVal(func(v string) {
+			opt := OptOf("hello")
+			ret := opt.IfVal(func(v string) {
 				assert.Equal(t, "hello", v)
 				run = true
 			})
+			assert.Equal(t, opt, ret)
 			assert.True(t, run)
 		})
 
 		t.Run("Empty", func(t *testing.T) {
+			opt := OptEmpty[string]()
+			ret := opt.IfVal(func(v string) {
+				panic(&UnreachableError{})
+			})
+			assert.Equal(t, opt, ret)
+		})
+	})
+
+	t.Run("IfEmpty", func(t *testing.T) {
+		t.Run("Val", func(t *testing.T) {
+			opt := OptOf("hello")
+			ret := opt.IfEmpty(func() {
+				panic(&UnreachableError{})
+			})
+			assert.Equal(t, opt, ret)
+		})
+
+		t.Run("Empty", func(t *testing.T) {
 			run := false
-			OptEmpty[string]().IfVal(func(v string) {
+			opt := OptEmpty[string]()
+			ret := opt.IfEmpty(func() {
 				run = true
 			})
-			assert.False(t, run)
+			assert.Equal(t, opt, ret)
+			assert.True(t, run)
 		})
 	})
 

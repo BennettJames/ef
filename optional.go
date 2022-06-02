@@ -120,12 +120,25 @@ func (o Opt[T]) IsEmpty() bool {
 	return !o.present
 }
 
+// todo [bs]: add a matching IsEmpty pure function once this is moved to
+// a subpackage for filtering.
+
 // IfVal executes the provided function with the stored value if the optional
-// has a value; otherwise does nothing.
-func (o Opt[T]) IfVal(fn func(v T)) {
+// has a value; otherwise does nothing. Returns itself for chaining.
+func (o Opt[T]) IfVal(fn func(v T)) Opt[T] {
 	if o.present {
 		fn(o.value)
 	}
+	return o
+}
+
+// IfEmpty calls the passed function if the optional is empty, otherwise does
+// nothing. Returns itself for chaining.
+func (o Opt[T]) IfEmpty(fn func()) Opt[T] {
+	if !o.present {
+		fn()
+	}
+	return o
 }
 
 // Or returns the provided value if the optional is empty, or the value if it

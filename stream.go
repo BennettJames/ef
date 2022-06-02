@@ -34,9 +34,7 @@ type (
 // StreamOf creates a stream out of several types that can be converted to a
 // stream.
 func StreamOf[T any, S Streamable[T]](s S) Stream[T] {
-	switch narrowed := (interface{})(s).(type) {
-	case nil:
-		return StreamOfSlice(Slice[T]())
+	switch narrowed := any(s).(type) {
 	case []T:
 		return StreamOfSlice(narrowed)
 	case *T:
@@ -60,6 +58,11 @@ func StreamOfSlice[T any](values []T) Stream[T] {
 			list: values,
 		},
 	}
+}
+
+// StreamOfVals returns a stream consisting of all elements passed to it.
+func StreamOfVals[T any](vals ...T) Stream[T] {
+	return StreamOfSlice(Slice(vals...))
 }
 
 // StreamOfIndexedSlice returns a stream of the values in the provided slice.
@@ -93,15 +96,11 @@ func StreamOfMap[T comparable, U any](m map[T]U) Stream[Pair[T, U]] {
 	// note [bs]: this is inefficient. it has to create a list of the pairs.
 	// Ideally there'd be a way to implement iter w/out having to reify the
 	// full set of pairs.
-	return StreamOfSlice(mapToList(m))
-}
-
-func mapToList[T comparable, U any](m map[T]U) []Pair[T, U] {
 	l := make([]Pair[T, U], 0, len(m))
 	for k, v := range m {
 		l = append(l, PairOf(k, v))
 	}
-	return l
+	return StreamOfSlice(l)
 }
 
 // Each performs the provided fn on each element in the stream.
@@ -150,19 +149,20 @@ func StreamToMapMerge[T comparable, U any](
 	merge func(key T, val1, val2 U) U,
 ) map[T]U {
 	m := make(map[T]U)
-	EachPair(s, func(t T, u U) {
-		if existing, exists := m[t]; !exists {
-			m[t] = u
+	EachPair(s, func(key T, value U) {
+		if existing, exists := m[key]; !exists {
+			m[key] = value
 		} else {
-			m[t] = merge(t, existing, u)
+			m[key] = merge(key, existing, value)
 		}
-		m[t] = u
+		m[key] = value
 	})
 	return m
 }
 
+// StreamMap transforms each value in the input stream into a new value with
+// the provided function, and returns a new stream with the result.
 func StreamMap[T, U any](s Stream[T], fn func(v T) U) Stream[U] {
-
 	return StreamOfFn(func() Opt[U] {
 		return OptMap(s.src.Next(), func(v T) U {
 			return fn(v)
@@ -170,15 +170,44 @@ func StreamMap[T, U any](s Stream[T], fn func(v T) U) Stream[U] {
 	})
 }
 
-func PStreamMap[T, U, V, W any](
-	s Stream[Pair[T, U]],
-	fn func(t T, u U) (V, W),
-) Stream[Pair[V, W]] {
-	return StreamMap(s, func(p Pair[T, U]) Pair[V, W] {
+// PStreamMap transforms both the values in each pair in the stream with the
+// provided function.
+func PStreamMap[K1, V1, K2, V2 any](
+	s Stream[Pair[K1, V1]],
+	fn func(K1, V1) (K2, V2),
+) Stream[Pair[K2, V2]] {
+	// ques [bs]: how convinced am I that this is the right interface for this
+	// behavior? particularly - could add function to map value or map key,
+	// possibly in addition to or as a replacement for this.
+	return StreamMap(s, func(p Pair[K1, V1]) Pair[K2, V2] {
 		return PairOf(fn(p.Get()))
 	})
 }
 
+// PStreamMapValue transforms the value in each pair in the stream with the
+// provided function.
+func PStreamMapValue[K, V1, V2 any](
+	s Stream[Pair[K, V1]],
+	fn func(K, V1) V2,
+) Stream[Pair[K, V2]] {
+	return StreamMap(s, func(p Pair[K, V1]) Pair[K, V2] {
+		return PairOf(p.First, fn(p.Get()))
+	})
+}
+
+// PStreamMapKey transforms the key in each pair in the stream with the provided
+// function.
+func PStreamMapKey[K1, K2, V any](
+	s Stream[Pair[K1, V]],
+	fn func(K1, V) K2,
+) Stream[Pair[K2, V]] {
+	return StreamMap(s, func(p Pair[K1, V]) Pair[K2, V] {
+		return PairOf(fn(p.Get()), p.Second)
+	})
+}
+
+// StreamPeek will call the function on each element in the stream, but without
+// any other side effects on the stream.
 func StreamPeek[T any](s Stream[T], fn func(v T)) Stream[T] {
 	return StreamOfFn(func() Opt[T] {
 		next := s.src.Next()
@@ -189,6 +218,8 @@ func StreamPeek[T any](s Stream[T], fn func(v T)) Stream[T] {
 	})
 }
 
+// StreamPeek will call the function on each pair in the stream, but without any
+// other side effects on the stream.
 func PStreamPeek[T, U any](
 	s Stream[Pair[T, U]],
 	fn func(v T, u U),
@@ -203,6 +234,17 @@ func StreamFilter[T any](s Stream[T], fn func(v T) bool) Stream[T] {
 		for {
 			next := s.src.Next()
 			if next.IsEmpty() || fn(next.UnsafeGet()) {
+				return next
+			}
+		}
+	})
+}
+
+func StreamRemove[T any](s Stream[T], fn func(v T) bool) Stream[T] {
+	return StreamOfFn(func() Opt[T] {
+		for {
+			next := s.src.Next()
+			if next.IsEmpty() || !fn(next.UnsafeGet()) {
 				return next
 			}
 		}

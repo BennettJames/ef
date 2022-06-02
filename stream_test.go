@@ -1,6 +1,7 @@
 package ef
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -102,6 +103,20 @@ func TestStreamOf(t *testing.T) {
 	})
 }
 
+func TestStreamOfSlice(t *testing.T) {
+	t.Run("WithValues", func(t *testing.T) {
+		assert.Equal(t,
+			Slice(1, 2, 3),
+			StreamOfVals(1, 2, 3).ToSlice())
+	})
+
+	t.Run("Empty", func(t *testing.T) {
+		assert.Equal(t,
+			[]int{},
+			StreamOfVals[int]().ToSlice())
+	})
+}
+
 func TestStreamOfIndexedSlice(t *testing.T) {
 	vals := Slice("a", "b", "c")
 	st := StreamOfIndexedSlice(vals)
@@ -141,20 +156,20 @@ func TestStreamToMap(t *testing.T) {
 
 	t.Run("Collision", func(t *testing.T) {
 		assert.Panics(t, func() {
-			StreamToMap(StreamOfSlice(Slice(
+			StreamToMap(StreamOfVals(
 				PairOf("a", 1),
 				PairOf("a", 2),
-			)))
+			))
 		})
 	})
 }
 
 func TestStreamToMapMerge(t *testing.T) {
 	t.Run("Basic", func(t *testing.T) {
-		st := StreamOfSlice(Slice(
+		st := StreamOfVals(
 			PairOf("a", 1),
 			PairOf("a", 2),
-		))
+		)
 		assert.Equal(t,
 			map[string]int{
 				"a": 2,
@@ -166,32 +181,114 @@ func TestStreamToMapMerge(t *testing.T) {
 
 	t.Run("Collision", func(t *testing.T) {
 		assert.Panics(t, func() {
-			StreamToMap(StreamOfSlice(Slice(
+			StreamToMap(StreamOfVals(
 				PairOf("a", 1),
 				PairOf("a", 2),
-			)))
+			))
 		})
 	})
 }
 
+func TestStreamMap(t *testing.T) {
+	input := StreamOfVals(1, 2, 3)
+	assert.Equal(t,
+		Slice("2", "4", "6"),
+		StreamMap(input, func(v int) string {
+			return fmt.Sprintf("%d", v*2)
+		}).ToSlice())
+}
+
+func TestPStreamMap(t *testing.T) {
+	input := StreamOfVals(
+		PairOf(1, "a"),
+		PairOf(2, "b"),
+		PairOf(3, "c"),
+	)
+	assert.Equal(t,
+		Slice(
+			PairOf("a", 1),
+			PairOf("b", 4),
+			PairOf("c", 9),
+		),
+		PStreamMap(input, func(num int, str string) (string, int) {
+			return str, num * num
+		}).ToSlice())
+}
+
+func TestPStreamMapKey(t *testing.T) {
+	input := StreamOfVals(
+		PairOf(1, "a"),
+		PairOf(2, "b"),
+		PairOf(3, "c"),
+	)
+	assert.Equal(t,
+		Slice(
+			PairOf("1", "a"),
+			PairOf("4", "b"),
+			PairOf("9", "c"),
+		),
+		PStreamMapKey(input, func(num int, str string) string {
+			return fmt.Sprintf("%d", num*num)
+		}).ToSlice())
+}
+
+func TestPStreamMapValue(t *testing.T) {
+	input := StreamOfVals(
+		PairOf(1, "a"),
+		PairOf(2, "b"),
+		PairOf(3, "c"),
+	)
+	assert.Equal(t,
+		Slice(
+			PairOf(1, "a!"),
+			PairOf(2, "b!"),
+			PairOf(3, "c!"),
+		),
+		PStreamMapValue(input, func(num int, str string) string {
+			return str + "!"
+		}).ToSlice())
+}
+
+func TestStreamPeek(t *testing.T) {
+	count := 0
+	input := StreamOfVals(1, 2, 3)
+	StreamPeek(input, func(v int) {
+		count += v
+	}).ToSlice()
+	assert.Equal(t, 6, count)
+}
+
+func TestPStreamPeek(t *testing.T) {
+	count := 0
+	input := StreamOfVals(
+		PairOf(1, 10),
+		PairOf(2, 20),
+		PairOf(3, 30),
+	)
+	PStreamPeek(input, func(v1, v2 int) {
+		count += v1 + v2
+	}).ToSlice()
+	assert.Equal(t, 66, count)
+}
+
 func TestStreamJoinString(t *testing.T) {
 	t.Run("SimpleStrings", func(t *testing.T) {
-		st := StreamOfSlice(Slice("a", "b", "c"))
+		st := StreamOfVals("a", "b", "c")
 		assert.Equal(t, "a-b-c", StreamJoinString(st, "-"))
 	})
 
 	t.Run("NoSep", func(t *testing.T) {
-		st := StreamOfSlice(Slice("a", "b", "c"))
+		st := StreamOfVals("a", "b", "c")
 		assert.Equal(t, "abc", StreamJoinString(st, ""))
 	})
 
 	t.Run("Empty", func(t *testing.T) {
-		st := StreamOfSlice(Slice[string]())
+		st := StreamOfVals[string]()
 		assert.Equal(t, "", StreamJoinString(st, "-"))
 	})
 
 	t.Run("Single", func(t *testing.T) {
-		st := StreamOfSlice(Slice("a"))
+		st := StreamOfVals("a")
 		assert.Equal(t, "a", StreamJoinString(st, "-"))
 	})
 }
@@ -211,7 +308,7 @@ func TestStreamStats(t *testing.T) {
 	})
 
 	t.Run("Int", func(t *testing.T) {
-		st := StreamOfSlice(Slice(1, 2, 3, 4, 5))
+		st := StreamOfVals(1, 2, 3, 4, 5)
 		assert.Equal(t,
 			SummaryStats[int]{
 				Average: 3,
@@ -224,7 +321,7 @@ func TestStreamStats(t *testing.T) {
 	})
 
 	t.Run("Float64", func(t *testing.T) {
-		st := StreamOfSlice(Slice(1.0, 2.5, -10.0, 5.0))
+		st := StreamOfVals(1.0, 2.5, -10.0, 5.0)
 		assert.Equal(t,
 			SummaryStats[float64]{
 				Average: -0.375,
