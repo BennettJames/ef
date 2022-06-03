@@ -229,42 +229,70 @@ func PStreamPeek[T, U any](
 	})
 }
 
-func StreamFilter[T any](s Stream[T], fn func(v T) bool) Stream[T] {
+// StreamKeep returns a stream consisting of all elements of the source stream
+// that match the given check.
+func StreamKeep[T any](src Stream[T], check func(T) bool) Stream[T] {
 	return StreamOfFn(func() Opt[T] {
 		for {
-			next := s.src.Next()
-			if next.IsEmpty() || fn(next.UnsafeGet()) {
+			next := src.src.Next()
+			if next.IsEmpty() || check(next.UnsafeGet()) {
 				return next
 			}
 		}
 	})
 }
 
-func StreamRemove[T any](s Stream[T], fn func(v T) bool) Stream[T] {
-	return StreamOfFn(func() Opt[T] {
-		for {
-			next := s.src.Next()
-			if next.IsEmpty() || !fn(next.UnsafeGet()) {
-				return next
-			}
-		}
-	})
-}
-
-func PStreamFilter[T, U any](
-	s Stream[Pair[T, U]],
-	fn func(t T, u U) bool,
+// PStreamKeep returns a stream consisting of all elements of the source stream
+// that match the given check.
+func PStreamKeep[T, U any](
+	src Stream[Pair[T, U]],
+	check func(T, U) bool,
 ) Stream[Pair[T, U]] {
-	return StreamFilter(s, func(p Pair[T, U]) bool {
-		return fn(p.Get())
+	return StreamOfFn(func() Opt[Pair[T, U]] {
+		for {
+			next := src.src.Next()
+			if next.IsEmpty() || check(next.UnsafeGet().Get()) {
+				return next
+			}
+		}
+	})
+}
+
+// StreamRemove returns a stream consisting of all elements of the source stream
+// that do _not_ match the given check.
+func StreamRemove[T any](src Stream[T], check func(T) bool) Stream[T] {
+	return StreamOfFn(func() Opt[T] {
+		for {
+			next := src.src.Next()
+			if next.IsEmpty() || !check(next.UnsafeGet()) {
+				return next
+			}
+		}
+	})
+}
+
+// PStreamRemove returns a stream consisting of all elements of the source stream
+// that do _not_ match the given check.
+func PStreamRemove[T, U any](
+	src Stream[Pair[T, U]],
+	check func(T, U) bool,
+) Stream[Pair[T, U]] {
+	return StreamOfFn(func() Opt[Pair[T, U]] {
+		for {
+			next := src.src.Next()
+			if next.IsEmpty() || !check(next.UnsafeGet().Get()) {
+				return next
+			}
+		}
 	})
 }
 
 func StreamToPairs[T any, U any, V any](
-	s Stream[T],
+	src Stream[T],
 	fn func(t T) (U, V),
 ) Stream[Pair[U, V]] {
 	// fixme - reimplement
+
 	return Stream[Pair[U, V]]{
 		// values: MapList(s.values, func(v V) Pair[U, T] {
 		// 	u, t := fn(v)

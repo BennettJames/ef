@@ -271,6 +271,42 @@ func TestPStreamPeek(t *testing.T) {
 	assert.Equal(t, 66, count)
 }
 
+func TestStreamKeep(t *testing.T) {
+	input := StreamOfVals(0, 1, 2, 3, 4)
+	isEven := func(v int) bool {
+		return v%2 == 0
+	}
+	filtered := StreamKeep(input, isEven).ToSlice()
+	assert.Equal(t, Slice(0, 2, 4), filtered)
+}
+
+func TestPStreamKeep(t *testing.T) {
+	input := StreamOfVals(PairOf(1, 1), PairOf(2, 3), PairOf(4, 4))
+	match := func(v1, v2 int) bool {
+		return v1 == v2
+	}
+	filtered := PStreamKeep(input, match).ToSlice()
+	assert.Equal(t, Slice(PairOf(1, 1), PairOf(4, 4)), filtered)
+}
+
+func TestStreamRemove(t *testing.T) {
+	input := StreamOfVals(0, 1, 2, 3, 4)
+	isEven := func(v int) bool {
+		return v%2 == 0
+	}
+	filtered := StreamRemove(input, isEven).ToSlice()
+	assert.Equal(t, Slice(1, 3), filtered)
+}
+
+func TestPStreamRemove(t *testing.T) {
+	input := StreamOfVals(PairOf(1, 1), PairOf(2, 3), PairOf(4, 4))
+	match := func(v1, v2 int) bool {
+		return v1 == v2
+	}
+	filtered := PStreamRemove(input, match).ToSlice()
+	assert.Equal(t, Slice(PairOf(2, 3)), filtered)
+}
+
 func TestStreamJoinString(t *testing.T) {
 	t.Run("SimpleStrings", func(t *testing.T) {
 		st := StreamOfVals("a", "b", "c")
