@@ -173,6 +173,21 @@ func Max[N Number](v1, v2 N) N {
 	return v2
 }
 
+// Add adds two numbers of the same type.
+func Add[N AllNumber](v1, v2 N) N {
+	// note [bs]: I added this as an experiment for function helpers for reduce.
+	// not convinced by it - I think I should move to a system where
+	//
+	// Not 100% sure that'd be the right approach either, but it'd be interested
+	// to try.
+	return v1 + v2
+}
+
+// Mult multiplies two number of the same type together.
+func Mult[N AllNumber](v1, v2 N) N {
+	return v1 * v2
+}
+
 // MinNumber returns the minimum possible number for the given number type.
 func MinNumber[N Number]() N {
 	switch any(*new(N)).(type) {

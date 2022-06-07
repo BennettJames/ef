@@ -307,6 +307,69 @@ func TestPStreamRemove(t *testing.T) {
 	assert.Equal(t, Slice(PairOf(2, 3)), filtered)
 }
 
+func TestStreamReduce(t *testing.T) {
+	t.Run("Sum", func(t *testing.T) {
+		st := StreamOfVals(1, 2, 3)
+		assert.Equal(t, 6, StreamReduce(st, Add[int]))
+	})
+
+	t.Run("Max", func(t *testing.T) {
+		st := StreamOfVals(1, 2, 3)
+		assert.Equal(t, 3, StreamReduce(st, Max[int]))
+	})
+}
+
+func TestStreamReduceInit(t *testing.T) {
+	t.Run("Mult", func(t *testing.T) {
+		st := StreamOfVals(1, 2, 3, 4)
+		assert.Equal(t, 24, StreamReduceInit(st, 1, Mult[int]))
+	})
+}
+
+func TestPStreamReduce(t *testing.T) {
+	t.Run("Sum", func(t *testing.T) {
+		input := StreamOfVals(
+			PairOf("a", 1),
+			PairOf("a", 2),
+			PairOf("b", 3),
+		)
+		assert.Equal(t,
+			6,
+			PStreamReduce(input, func(total int, key string, val int) int {
+				total += val
+				return total
+			}))
+	})
+}
+
+func TestPStreamReduceInit(t *testing.T) {
+	input := StreamOfVals(
+		PairOf("a", 1),
+		PairOf("a", 2),
+		PairOf("b", 3),
+	)
+	expected := map[string][]int{
+		"a": Slice(1, 2),
+		"b": Slice(3),
+	}
+	assert.Equal(t,
+		expected,
+		PStreamReduceInit(
+			input, map[string][]int{},
+			addToMultiMap[string, int]))
+}
+
+func addToMultiMap[K comparable, V any](m map[K][]V, key K, val V) map[K][]V {
+	// this is interesting. I think this would be a good addition, but not
+	// sure now is the time?
+	if existing, ok := m[key]; ok {
+		m[key] = append(existing, val)
+	} else {
+		m[key] = Slice(val)
+	}
+	return m
+}
+
 func TestStreamJoinString(t *testing.T) {
 	t.Run("SimpleStrings", func(t *testing.T) {
 		st := StreamOfVals("a", "b", "c")

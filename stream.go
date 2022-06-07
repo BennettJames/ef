@@ -287,30 +287,43 @@ func PStreamRemove[T, U any](
 	})
 }
 
-func StreamToPairs[T any, U any, V any](
-	src Stream[T],
-	fn func(t T) (U, V),
-) Stream[Pair[U, V]] {
-	// fixme - reimplement
-
-	return Stream[Pair[U, V]]{
-		// values: MapList(s.values, func(v V) Pair[U, T] {
-		// 	u, t := fn(v)
-		// 	return Pair[U, T]{u, t}
-		// }),
-	}
-}
-
+// Each will perform the given function on each element of the input.
+//
+// Note this takes any streamable value as input - e.g. a stream or list can
+// be given. Examples -
+//
+//    Each(Slice(1, 2, 3), func(val int) {
+//       fmt.Println("value is - ", val)
+//    })
+//
+//    Each(StreamOfVals(1, 2, 3), func(val int) {
+//       fmt.Println("value is - ", val)
+//    })
+//
 func Each[T any, S Streamable[T]](s S, fn func(v T)) {
 	StreamOf[T](s).Each(fn)
 }
 
+// EachPair will perform the given function on each element of the input pair
+// stream.
 func EachPair[T, U any, S Streamable[Pair[T, U]]](s S, fn func(t T, u U)) {
+	// ques [bs]: this is one of an increasing number of cases where restricting
+	// pair to have a comparable would be really convenient.
 	Each(s, func(p Pair[T, U]) {
 		fn(p.First, p.Second)
 	})
 }
 
+// StreamReduce combines all the values in the stream down to one of type `U`. A
+// value of `U` type is initialized, and merge is called repeatedly on each
+// element in the stream with the current value of `U`. Once the stream is
+// finished, the final value is returned.
+//
+// Example:
+//
+//   st := StreamOfVals(1, 2, 3)
+//   sum := StreamReduce(st, func(v1, v2 int) int { return v1 + v2 })
+//
 func StreamReduce[T any, U any](
 	s Stream[T],
 	merge func(total U, val T) U,
@@ -320,6 +333,16 @@ func StreamReduce[T any, U any](
 	return StreamReduceInit(s, *u, merge)
 }
 
+// StreamReduceInit combines all the values in the stream down to one of type
+// `U`. `merge`` is called repeatedly on each element in the stream with the
+// current value of `U`, starting with the provided `initVal`. Once the stream
+// is finished, the final value is returned.
+//
+// Example:
+//
+//   st := StreamOfVals(1, 2, 3)
+//   product := StreamReduceInit(st, 1, func(v1, v2 int) int { return v1 * v2 })
+//
 func StreamReduceInit[T any, U any](
 	s Stream[T],
 	initVal U,
@@ -327,6 +350,55 @@ func StreamReduceInit[T any, U any](
 ) U {
 	s.Each(func(v T) {
 		initVal = merge(initVal, v)
+	})
+	return initVal
+}
+
+// StreamReduce combines all the values in the pair-stream down to one of type `V`. A
+// value of `V` type is initialized, and merge is called repeatedly on each
+// element in the stream with the current value of `V`. Once the stream is
+// finished, the final value is returned.
+//
+// Example:
+//
+//   st := StreamOfMap(map[string]int{
+//     "a": 1,
+//     "b": 2,
+//     "c": 3,
+//   })
+//   sum := StreamReduce(st, func(total int, k string, v int) int { return total + v })
+//
+func PStreamReduce[T any, U any, V any](
+	s Stream[Pair[T, U]],
+	merge func(total V, first T, second U) V,
+) V {
+	v := new(V)
+	return PStreamReduceInit(s, *v, merge)
+}
+
+// PStreamReduceInit combines all the values in the pair-stream down to one of
+// type `V`. `merge`` is called repeatedly on each element in the stream with
+// the current value of `V`, starting with the provided `initVal`. Once the
+// stream is finished, the final value is returned.
+//
+// Example:
+//
+//   st := StreamOfMap(map[string]int{
+//     "a": 1,
+//     "b": 2,
+//     "c": 3,
+//   })
+//   product := PStreamReduceInit(st, 1, func(total int, key string, val int) int {
+//     return total * val
+//   })
+//
+func PStreamReduceInit[T any, U any, V any](
+	s Stream[Pair[T, U]],
+	initVal V,
+	merge func(total V, first T, second U) V,
+) V {
+	EachPair(s, func(v1 T, v2 U) {
+		initVal = merge(initVal, v1, v2)
 	})
 	return initVal
 }
