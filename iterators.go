@@ -1,57 +1,64 @@
 package ef
 
-type iterFn[T any] struct {
-	fn func() Opt[T]
-}
-
-func (i *iterFn[T]) Next() Opt[T] {
-	return i.fn()
-}
-
-type listIter[T any] struct {
-	list      []T
-	nextIndex int
-}
-
-func (l *listIter[T]) Next() Opt[T] {
-	if l.nextIndex >= len(l.list) {
-		return Opt[T]{}
+type (
+	sliceIter[T any] struct {
+		vals []T
 	}
-	v := l.list[l.nextIndex]
-	l.nextIndex++
-	return OptOf(v)
-}
 
-type listIterIndexed[T any] struct {
-	list      []T
-	nextIndex int
-}
-
-func (l *listIterIndexed[T]) Next() Opt[Pair[int, T]] {
-	index := l.nextIndex
-	if index >= len(l.list) {
-		return OptEmpty[Pair[int, T]]()
+	indexedSliceIter[T any] struct {
+		vals []T
 	}
-	v := l.list[index]
-	l.nextIndex++
-	return OptOf(PairOf(index, v))
-}
 
-type multiStream[T any] struct {
-	streams     []Stream[T]
-	streamIndex int
-}
+	mapIter[T any] struct {
+		vals []T
+	}
 
-func (i *multiStream[T]) Next() Opt[T] {
-	// ques [bs]: I feel like some of the internal iterator patterns I've used here
-	// are a bit sloppy / inconvenient. Is that a sign of bad / weird design, or more
-	// a consequence of how this is trying to abstract ugly access patterns?
-	for ; i.streamIndex < len(i.streams); i.streamIndex++ {
-		nextStream := i.streams[i.streamIndex]
-		nextVal := nextStream.src.Next()
-		if !nextVal.IsEmpty() {
-			return nextVal
+	fnIter[T any] struct {
+		fn func(func(val T) (advance bool))
+	}
+
+	optFnIter[T any] struct {
+		fn func() Opt[T]
+	}
+
+	multiStream[T any] struct {
+		streams     []Stream[T]
+		streamIndex int
+	}
+)
+
+func (si *sliceIter[T]) forEach(fn func(val T) (advance bool)) {
+	for _, v := range si.vals {
+		if !fn(v) {
+			break
 		}
 	}
-	return OptEmpty[T]()
+}
+
+func (si *indexedSliceIter[T]) forEach(fn func(Pair[int, T]) (advance bool)) {
+	for i, v := range si.vals {
+		advance := fn(PairOf(i, v))
+		if !advance {
+			break
+		}
+	}
+}
+
+func (fi *fnIter[T]) forEach(fn func(T) bool) {
+	fi.fn(fn)
+}
+
+func (fi *optFnIter[T]) forEach(fn func(T) (advance bool)) {
+	for v := fi.fn(); v.HasVal(); v = fi.fn() {
+		advance := fn(v.UnsafeGet())
+		if !advance {
+			break
+		}
+	}
+}
+
+func (ms *multiStream[T]) forEach(fn func(T) (advance bool)) {
+	for _, st := range ms.streams {
+		st.src.forEach(fn)
+	}
 }
