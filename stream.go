@@ -15,12 +15,17 @@ type (
 		src iter[T]
 	}
 
-	// todo [bs]: let's take the following interface out for a spin at some point.
-	// aliases like this always seem to give me a little trouble so I'm not
-	// _quite_ sure it's a good idea yet, but I'd like to play around and see how
-	// it pans out.
+	Stream5[T any] struct {
+		iter stream5Iter[T]
+	}
 
-	// PStream[T comparable, U any] Stream[Pair[T, U]]
+	stream5Iter[T any] interface {
+		forEach(func(val T) (advance bool))
+	}
+
+	stream5Slice[T any] struct {
+		vals []T
+	}
 
 	iter[T any] interface {
 		Next() Opt[T]
@@ -30,6 +35,26 @@ type (
 		~[]T | ~*T | Opt[T] | Stream[T] | ~func() Opt[T]
 	}
 )
+
+func Stream5OfSlice[T any](vals []T) Stream5[T] {
+	return Stream5[T]{
+		iter: &stream5Slice[T]{
+			vals: vals,
+		},
+	}
+}
+
+func (st Stream5[T]) Each(fn func(T) bool) {
+	st.iter.forEach(fn)
+}
+
+func (ss *stream5Slice[T]) forEach(fn func(val T) (advance bool)) {
+	for _, v := range ss.vals {
+		if !fn(v) {
+			break
+		}
+	}
+}
 
 // StreamOf creates a stream out of several types that can be converted to a
 // stream.
