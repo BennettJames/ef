@@ -9,7 +9,7 @@ var streamEachVal int
 
 func BenchmarkStreamEachExpensive(b *testing.B) {
 
-	size := 1024 * 8
+	size := 1024
 	vals := make([]int, size)
 	for i := 0; i < len(vals); i++ {
 		vals[i] = i
@@ -19,6 +19,7 @@ func BenchmarkStreamEachExpensive(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, v := range vals {
 				streamEachVal = int(math.Pow(float64(v), 1.5))
+				// streamEachVal = v * v / 3
 				// streamEachVal = v
 			}
 		}
@@ -28,6 +29,7 @@ func BenchmarkStreamEachExpensive(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			genericIter(vals, func(v int) {
 				streamEachVal = int(math.Pow(float64(v), 1.5))
+				// streamEachVal = v * v / 3
 				// streamEachVal = v
 			})
 		}
@@ -37,6 +39,7 @@ func BenchmarkStreamEachExpensive(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			intIter(vals, func(v int) {
 				streamEachVal = int(math.Pow(float64(v), 1.5))
+				// streamEachVal = v * v / 3
 				// streamEachVal = v
 			})
 		}
@@ -47,6 +50,7 @@ func BenchmarkStreamEachExpensive(b *testing.B) {
 			st := Stream4OfSlice(vals)
 			st.Each(func(v int) bool {
 				streamEachVal = int(math.Pow(float64(v), 1.5))
+				// streamEachVal = v * v / 3
 				// streamEachVal = v
 				return true
 			})

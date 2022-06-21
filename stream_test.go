@@ -435,6 +435,18 @@ func TestStreamStats(t *testing.T) {
 
 func TestStreamConcat(t *testing.T) {
 
+	var _ = StreamMap(StreamOf[int](Slice(1, 2, 3)), func(v int) string {
+		return "a"
+	})
+
+	// this is interesting. I'm very tempted to adopt this as the core API system,
+	// along with transitioning to a "key pair" system in lieu of "pair".
+	//
+	// That said - constant type checking / wrapping might have some
+	var _ = StreamMap2(Slice(1, 2, 3), func(v int) string {
+		return "a"
+	})
+
 	t.Run("Basic", func(t *testing.T) {
 		assert.Equal(t,
 			Slice(1, 2, 3, 4, 5),

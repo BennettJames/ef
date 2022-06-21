@@ -15,46 +15,14 @@ type (
 		src iter[T]
 	}
 
-	Stream5[T any] struct {
-		iter stream5Iter[T]
-	}
-
-	stream5Iter[T any] interface {
-		forEach(func(val T) (advance bool))
-	}
-
-	stream5Slice[T any] struct {
-		vals []T
-	}
-
 	iter[T any] interface {
-		Next() Opt[T]
+		forEach(func(val T) (advance bool))
 	}
 
 	Streamable[T any] interface {
 		~[]T | ~*T | Opt[T] | Stream[T] | ~func() Opt[T]
 	}
 )
-
-func Stream5OfSlice[T any](vals []T) Stream5[T] {
-	return Stream5[T]{
-		iter: &stream5Slice[T]{
-			vals: vals,
-		},
-	}
-}
-
-func (st Stream5[T]) Each(fn func(T) bool) {
-	st.iter.forEach(fn)
-}
-
-func (ss *stream5Slice[T]) forEach(fn func(val T) (advance bool)) {
-	for _, v := range ss.vals {
-		if !fn(v) {
-			break
-		}
-	}
-}
 
 // StreamOf creates a stream out of several types that can be converted to a
 // stream.
@@ -79,8 +47,8 @@ func StreamOf[T any, S Streamable[T]](s S) Stream[T] {
 // StreamOfSlice returns a stream of the values in the provided slice.
 func StreamOfSlice[T any](values []T) Stream[T] {
 	return Stream[T]{
-		src: &listIter[T]{
-			list: values,
+		src: &sliceIter[T]{
+			vals: values,
 		},
 	}
 }
@@ -93,8 +61,8 @@ func StreamOfVals[T any](vals ...T) Stream[T] {
 // StreamOfIndexedSlice returns a stream of the values in the provided slice.
 func StreamOfIndexedSlice[T any](values []T) Stream[Pair[int, T]] {
 	return Stream[Pair[int, T]]{
-		src: &listIterIndexed[T]{
-			list: values,
+		src: &indexedSliceIter[T]{
+			vals: values,
 		},
 	}
 }
@@ -104,8 +72,30 @@ func StreamOfIndexedSlice[T any](values []T) Stream[Pair[int, T]] {
 // empty optional, at which point the source will be considered exhausted.
 func StreamOfFn[T any](fnSrc func() Opt[T]) Stream[T] {
 	return Stream[T]{
-		src: &iterFn[T]{
+		src: &optFnIter[T]{
 			fn: fnSrc,
+		},
+	}
+}
+
+func StreamOfFn2[T any](forEach func(func(T) bool)) Stream[T] {
+	// I feel like I'm still struggling with the precisely correct intuition here.
+	// Need to think a little more about the function composition here.
+	//
+	// Roughly speaking: there are two levels of functions here, though I don't
+	// necessarily want to think about both all the time. Which I think may be
+	// the issue - I want a better level and composition for the two types.
+	//
+	// One level is performing the base level iteration on the source, and the next
+	// is performing
+	//
+	// A stream transform function is often just more-or-less layering another
+	// fn into the core stream (indeed, it might be worth thinking about the data
+	// structure representation for that). Sometimes you would in fact want to affect
+	// the
+	return Stream[T]{
+		src: &fnIter[T]{
+			fn: forEach,
 		},
 	}
 }
@@ -130,9 +120,10 @@ func StreamOfMap[T comparable, U any](m map[T]U) Stream[Pair[T, U]] {
 
 // Each performs the provided fn on each element in the stream.
 func (s Stream[V]) Each(fn func(v V)) {
-	for next := s.src.Next(); !next.IsEmpty(); next = s.src.Next() {
-		fn(next.UnsafeGet())
-	}
+	s.src.forEach(func(val V) (advance bool) {
+		fn(val)
+		return true
+	})
 }
 
 // ToSlice puts every value of the stream into a slice.
@@ -187,12 +178,31 @@ func StreamToMapMerge[T comparable, U any](
 
 // StreamMap transforms each value in the input stream into a new value with
 // the provided function, and returns a new stream with the result.
-func StreamMap[T, U any](s Stream[T], fn func(v T) U) Stream[U] {
-	return StreamOfFn(func() Opt[U] {
-		return OptMap(s.src.Next(), func(v T) U {
-			return fn(v)
-		})
-	})
+func StreamMap[T, U any](s Stream[T], mapFn func(v T) U) Stream[U] {
+
+	return Stream[U]{
+		src: &fnIter[U]{
+			fn: func(wrappedFn func(U) bool) {
+				s.src.forEach(func(val T) bool {
+					return wrappedFn(mapFn(val))
+				})
+			},
+		},
+	}
+}
+
+func StreamMap2[T, U any, S Streamable[T]](s S, mapFn func(v T) U) Stream[U] {
+
+	st := StreamOf[T](s)
+	return Stream[U]{
+		src: &fnIter[U]{
+			fn: func(wrappedFn func(U) bool) {
+				st.src.forEach(func(val T) bool {
+					return wrappedFn(mapFn(val))
+				})
+			},
+		},
+	}
 }
 
 // PStreamMap transforms both the values in each pair in the stream with the
@@ -233,14 +243,32 @@ func PStreamMapKey[K1, K2, V any](
 
 // StreamPeek will call the function on each element in the stream, but without
 // any other side effects on the stream.
-func StreamPeek[T any](s Stream[T], fn func(v T)) Stream[T] {
-	return StreamOfFn(func() Opt[T] {
-		next := s.src.Next()
-		next.IfVal(func(v T) {
-			fn(v)
-		})
-		return next
-	})
+func StreamPeek[T any](s Stream[T], peekFn func(v T)) Stream[T] {
+
+	// so - I still feel like I'm not _quite_ consistently conceptualizing this
+	// correctly. Or rather, I didn't go far enough in helpers.
+	//
+	// Particularly - I often do now need to just wrap an existing fn in another.
+	// It's not clear to me if you really ought be interacting w/ the iteration. Seems
+	// like there's some types of
+	//
+	// I'll also add that I'm a little worried there might be a few invisible barriers
+	// in here w/ functions that as they pile up certain optimizations and inlining
+	// may go out the window.
+	//
+	// That might start getting a bit hairy though. Roughly speaking: again, there is
+	// sort of a layer different between "function that "
+
+	return Stream[T]{
+		src: &fnIter[T]{
+			fn: func(f func(T) bool) {
+				s.src.forEach(func(val T) (advance bool) {
+					peekFn(val)
+					return f(val)
+				})
+			},
+		},
+	}
 }
 
 // StreamPeek will call the function on each pair in the stream, but without any
@@ -257,14 +285,27 @@ func PStreamPeek[T, U any](
 // StreamKeep returns a stream consisting of all elements of the source stream
 // that match the given check.
 func StreamKeep[T any](src Stream[T], check func(T) bool) Stream[T] {
-	return StreamOfFn(func() Opt[T] {
-		for {
-			next := src.src.Next()
-			if next.IsEmpty() || check(next.UnsafeGet()) {
-				return next
-			}
-		}
-	})
+	return Stream[T]{
+		src: &fnIter[T]{
+			fn: func(f func(T) bool) {
+				src.src.forEach(func(val T) (advance bool) {
+					if check(val) {
+						return f(val)
+					}
+					return true
+				})
+			},
+		},
+	}
+
+	// return StreamOfFn(func() Opt[T] {
+	// 	for {
+	// 		next := src.src.Next()
+	// 		if next.IsEmpty() || check(next.UnsafeGet()) {
+	// 			return next
+	// 		}
+	// 	}
+	// })
 }
 
 // PStreamKeep returns a stream consisting of all elements of the source stream
@@ -273,27 +314,36 @@ func PStreamKeep[T, U any](
 	src Stream[Pair[T, U]],
 	check func(T, U) bool,
 ) Stream[Pair[T, U]] {
-	return StreamOfFn(func() Opt[Pair[T, U]] {
-		for {
-			next := src.src.Next()
-			if next.IsEmpty() || check(next.UnsafeGet().Get()) {
-				return next
-			}
-		}
-	})
+
+	return Stream[Pair[T, U]]{
+		src: &fnIter[Pair[T, U]]{
+			fn: func(f func(Pair[T, U]) bool) {
+				src.src.forEach(func(val Pair[T, U]) (advance bool) {
+					if check(val.First, val.Second) {
+						return f(val)
+					}
+					return true
+				})
+			},
+		},
+	}
 }
 
 // StreamRemove returns a stream consisting of all elements of the source stream
 // that do _not_ match the given check.
 func StreamRemove[T any](src Stream[T], check func(T) bool) Stream[T] {
-	return StreamOfFn(func() Opt[T] {
-		for {
-			next := src.src.Next()
-			if next.IsEmpty() || !check(next.UnsafeGet()) {
-				return next
-			}
-		}
-	})
+	return Stream[T]{
+		src: &fnIter[T]{
+			fn: func(f func(T) bool) {
+				src.src.forEach(func(val T) (advance bool) {
+					if !check(val) {
+						return f(val)
+					}
+					return true
+				})
+			},
+		},
+	}
 }
 
 // PStreamRemove returns a stream consisting of all elements of the source stream
@@ -302,14 +352,19 @@ func PStreamRemove[T, U any](
 	src Stream[Pair[T, U]],
 	check func(T, U) bool,
 ) Stream[Pair[T, U]] {
-	return StreamOfFn(func() Opt[Pair[T, U]] {
-		for {
-			next := src.src.Next()
-			if next.IsEmpty() || !check(next.UnsafeGet().Get()) {
-				return next
-			}
-		}
-	})
+
+	return Stream[Pair[T, U]]{
+		src: &fnIter[Pair[T, U]]{
+			fn: func(f func(Pair[T, U]) bool) {
+				src.src.forEach(func(val Pair[T, U]) (advance bool) {
+					if !check(val.First, val.Second) {
+						return f(val)
+					}
+					return true
+				})
+			},
+		},
+	}
 }
 
 // Each will perform the given function on each element of the input.

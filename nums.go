@@ -69,13 +69,13 @@ type rangeStruct[I Integer] struct {
 	offset     I
 }
 
-func (i *rangeStruct[I]) Next() Opt[I] {
-	v := i.start + i.offset
-	if v >= i.end {
-		return Opt[I]{}
+func (ri *rangeStruct[T]) forEach(fn func(T) bool) {
+	// note [bs]: double check the bound behavior here
+	for v := ri.start; v < ri.end; v++ {
+		if !fn(v) {
+			break
+		}
 	}
-	i.offset++
-	return OptOf(v)
 }
 
 // RangeIncl creates a stream that goes from start to end, including the end
@@ -98,13 +98,13 @@ type rangeInclStruct[I Integer] struct {
 	offset     I
 }
 
-func (i *rangeInclStruct[I]) Next() Opt[I] {
-	v := i.start + i.offset
-	if v > i.end {
-		return Opt[I]{}
+func (ri *rangeInclStruct[T]) forEach(fn func(T) bool) {
+	// note [bs]: double check the bound behavior here
+	for v := ri.start; v <= ri.end; v++ {
+		if !fn(v) {
+			break
+		}
 	}
-	i.offset++
-	return OptOf(v)
 }
 
 // RangeRev produces the same values as Range, but in reverse. Note it is still
@@ -124,13 +124,13 @@ type rangeRevStruct[I Integer] struct {
 	offset     I
 }
 
-func (i *rangeRevStruct[I]) Next() Opt[I] {
-	v := i.end + i.offset - 1
-	if v < i.start {
-		return Opt[I]{}
+func (ri *rangeRevStruct[T]) forEach(fn func(T) bool) {
+	// note [bs]: double check the bound behavior here
+	for v := ri.end - 1; v >= ri.start; v-- {
+		if !fn(v) {
+			break
+		}
 	}
-	i.offset--
-	return OptOf(v)
 }
 
 // RangeRevIncl produces the same values as RangeIncl, but in reverse.
@@ -148,13 +148,13 @@ type rangeReverseInclStruct[I Integer] struct {
 	offset     I
 }
 
-func (i *rangeReverseInclStruct[I]) Next() Opt[I] {
-	v := i.end + i.offset
-	if v < i.start {
-		return Opt[I]{}
+func (ri *rangeReverseInclStruct[T]) forEach(fn func(T) bool) {
+	// note [bs]: double check the bound behavior here
+	for v := ri.end; v >= ri.start; v-- {
+		if !fn(v) {
+			break
+		}
 	}
-	i.offset--
-	return OptOf(v)
 }
 
 // Min returns the lower of the two values.
