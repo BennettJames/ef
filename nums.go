@@ -54,7 +54,7 @@ func Order[N Number](v1, v2 N) (low N, high N) {
 // end.
 func Range[I Integer](start, end I) Stream[I] {
 	return Stream[I]{
-		src: &rangeStruct[I]{
+		srcIter: &rangeStruct[I]{
 			start: start,
 			end:   end,
 		},
@@ -69,7 +69,7 @@ type rangeStruct[I Integer] struct {
 	offset     I
 }
 
-func (ri *rangeStruct[T]) forEach(fn func(T) bool) {
+func (ri *rangeStruct[T]) iterate(fn func(T) bool) {
 	// note [bs]: double check the bound behavior here
 	for v := ri.start; v < ri.end; v++ {
 		if !fn(v) {
@@ -82,7 +82,7 @@ func (ri *rangeStruct[T]) forEach(fn func(T) bool) {
 // value.
 func RangeIncl[I Integer](start, end I) Stream[I] {
 	return Stream[I]{
-		src: &rangeInclStruct[I]{
+		srcIter: &rangeInclStruct[I]{
 			start: start,
 			end:   end,
 		},
@@ -98,7 +98,7 @@ type rangeInclStruct[I Integer] struct {
 	offset     I
 }
 
-func (ri *rangeInclStruct[T]) forEach(fn func(T) bool) {
+func (ri *rangeInclStruct[T]) iterate(fn func(T) bool) {
 	// note [bs]: double check the bound behavior here
 	for v := ri.start; v <= ri.end; v++ {
 		if !fn(v) {
@@ -112,7 +112,7 @@ func (ri *rangeInclStruct[T]) forEach(fn func(T) bool) {
 // value is `start`.
 func RangeRev[I Integer](start, end I) Stream[I] {
 	return Stream[I]{
-		src: &rangeRevStruct[I]{
+		srcIter: &rangeRevStruct[I]{
 			start: start,
 			end:   end,
 		},
@@ -124,7 +124,7 @@ type rangeRevStruct[I Integer] struct {
 	offset     I
 }
 
-func (ri *rangeRevStruct[T]) forEach(fn func(T) bool) {
+func (ri *rangeRevStruct[T]) iterate(fn func(T) bool) {
 	// note [bs]: double check the bound behavior here
 	for v := ri.end - 1; v >= ri.start; v-- {
 		if !fn(v) {
@@ -136,7 +136,7 @@ func (ri *rangeRevStruct[T]) forEach(fn func(T) bool) {
 // RangeRevIncl produces the same values as RangeIncl, but in reverse.
 func RangeRevIncl[I Integer](start, end I) Stream[I] {
 	return Stream[I]{
-		src: &rangeReverseInclStruct[I]{
+		srcIter: &rangeReverseInclStruct[I]{
 			start: start,
 			end:   end,
 		},
@@ -148,7 +148,7 @@ type rangeReverseInclStruct[I Integer] struct {
 	offset     I
 }
 
-func (ri *rangeReverseInclStruct[T]) forEach(fn func(T) bool) {
+func (ri *rangeReverseInclStruct[T]) iterate(fn func(T) bool) {
 	// note [bs]: double check the bound behavior here
 	for v := ri.end; v >= ri.start; v-- {
 		if !fn(v) {

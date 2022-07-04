@@ -18,6 +18,8 @@ type (
 	}
 
 	optFnIter[T any] struct {
+		// note [bs]: I'm not 100% sold on this. I'm tempted to just have a (T, bool)
+		// return value instead.
 		fn func() Opt[T]
 	}
 
@@ -27,38 +29,38 @@ type (
 	}
 )
 
-func (si *sliceIter[T]) forEach(fn func(val T) (advance bool)) {
+func (si *sliceIter[T]) iterate(opFn func(val T) (advance bool)) {
 	for _, v := range si.vals {
-		if !fn(v) {
+		if !opFn(v) {
 			break
 		}
 	}
 }
 
-func (si *indexedSliceIter[T]) forEach(fn func(Pair[int, T]) (advance bool)) {
+func (si *indexedSliceIter[T]) iterate(opFn func(Pair[int, T]) (advance bool)) {
 	for i, v := range si.vals {
-		advance := fn(PairOf(i, v))
+		advance := opFn(PairOf(i, v))
 		if !advance {
 			break
 		}
 	}
 }
 
-func (fi *fnIter[T]) forEach(fn func(T) bool) {
-	fi.fn(fn)
+func (fi *fnIter[T]) iterate(opFn func(T) bool) {
+	fi.fn(opFn)
 }
 
-func (fi *optFnIter[T]) forEach(fn func(T) (advance bool)) {
+func (fi *optFnIter[T]) iterate(opFn func(T) (advance bool)) {
 	for v := fi.fn(); v.HasVal(); v = fi.fn() {
-		advance := fn(v.UnsafeGet())
+		advance := opFn(v.UnsafeGet())
 		if !advance {
 			break
 		}
 	}
 }
 
-func (ms *multiStream[T]) forEach(fn func(T) (advance bool)) {
+func (ms *multiStream[T]) iterate(opFn func(T) (advance bool)) {
 	for _, st := range ms.streams {
-		st.src.forEach(fn)
+		st.srcIter.iterate(opFn)
 	}
 }
