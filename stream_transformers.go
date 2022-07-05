@@ -5,6 +5,29 @@ import (
 	"strings"
 )
 
+// StreamTransform is a generic helper that can be used to apply an operator
+// to a stream.
+//
+// (todo [bs]: expand docs)
+func StreamTransform[T, U any](
+	srcSt Stream[T],
+	op func(T, func(U) bool) bool,
+) Stream[U] {
+	// note [bs]: the API for this feels fairly good. If this is as general
+	// as it seems to be though, I may want to change the fnIter type - if
+	// this is basically the only use case for it, I could perhaps adapt it
+	// to just meet this case more directly.
+	return Stream[U]{
+		srcIter: &fnIter[U]{
+			fn: func(nextOp func(U) bool) {
+				srcSt.srcIter.iterate(func(val T) bool {
+					return op(val, nextOp)
+				})
+			},
+		},
+	}
+}
+
 // StreamToMap takes each value in a pair-stream, and turns it into a map where
 // the keys are the first value in the pairs, and the values the second.
 //
@@ -47,34 +70,15 @@ func StreamToMapMerge[T comparable, U any](
 // StreamMap transforms each value in the input stream into a new value with
 // the provided function, and returns a new stream with the result.
 func StreamMap[T, U any](srcSt Stream[T], mapOp func(v T) U) Stream[U] {
-
-	// so - this feels like it ought be simplifiable, or at least captured
-	// with a more consistent pattern. Rough idea: most fn iter's have at least
-	// some basic consistent patterns. In practice, they often end up doing
-	// something very similar to the original
-
-	return Stream[U]{
-		srcIter: &fnIter[U]{
-			fn: func(wrappedFn func(U) bool) {
-				srcSt.srcIter.iterate(func(val T) bool {
-					return wrappedFn(mapOp(val))
-				})
-			},
-		},
-	}
+	return StreamTransform(srcSt, func(val T, nextOp func(U) bool) bool {
+		return nextOp(mapOp(val))
+	})
 }
 
 func StreamMap2[T, U any, S Streamable[T]](srcSt S, mapOp func(v T) U) Stream[U] {
-	st := StreamOf[T](srcSt)
-	return Stream[U]{
-		srcIter: &fnIter[U]{
-			fn: func(wrappedFn func(U) bool) {
-				st.srcIter.iterate(func(val T) bool {
-					return wrappedFn(mapOp(val))
-				})
-			},
-		},
-	}
+	return StreamTransform(StreamOf[T](srcSt), func(val T, nextOp func(U) bool) bool {
+		return nextOp(mapOp(val))
+	})
 }
 
 // PStreamMap transforms both the values in each pair in the stream with the
@@ -116,31 +120,10 @@ func PStreamMapKey[K1, K2, V any](
 // StreamPeek will call the function on each element in the stream, but without
 // any other side effects on the stream.
 func StreamPeek[T any](srcSt Stream[T], peekOp func(v T)) Stream[T] {
-
-	// so - I still feel like I'm not _quite_ consistently conceptualizing this
-	// correctly. Or rather, I didn't go far enough in helpers.
-	//
-	// Particularly - I often do now need to just wrap an existing fn in another.
-	// It's not clear to me if you really ought be interacting w/ the iteration. Seems
-	// like there's some types of
-	//
-	// I'll also add that I'm a little worried there might be a few invisible barriers
-	// in here w/ functions that as they pile up certain optimizations and inlining
-	// may go out the window.
-	//
-	// That might start getting a bit hairy though. Roughly speaking: again, there is
-	// sort of a layer different between "function that "
-
-	return Stream[T]{
-		srcIter: &fnIter[T]{
-			fn: func(f func(T) bool) {
-				srcSt.srcIter.iterate(func(val T) (advance bool) {
-					peekOp(val)
-					return f(val)
-				})
-			},
-		},
-	}
+	return StreamTransform(srcSt, func(val T, nextOp func(T) bool) bool {
+		peekOp(val)
+		return nextOp(val)
+	})
 }
 
 // StreamPeek will call the function on each pair in the stream, but without any
@@ -157,27 +140,14 @@ func PStreamPeek[T, U any](
 // StreamKeep returns a stream consisting of all elements of the source stream
 // that match the given check.
 func StreamKeep[T any](srcSt Stream[T], keepOp func(T) bool) Stream[T] {
-	return Stream[T]{
-		srcIter: &fnIter[T]{
-			fn: func(f func(T) bool) {
-				srcSt.srcIter.iterate(func(val T) (advance bool) {
-					if keepOp(val) {
-						return f(val)
-					}
-					return true
-				})
-			},
-		},
-	}
-
-	// return StreamOfFn(func() Opt[T] {
-	// 	for {
-	// 		next := src.src.Next()
-	// 		if next.IsEmpty() || check(next.UnsafeGet()) {
-	// 			return next
-	// 		}
-	// 	}
-	// })
+	return StreamTransform(srcSt, func(val T, nextOp func(T) bool) bool {
+		// note [bs]: let's think through the bool flow here. I think it's
+		// ok.
+		if keepOp(val) {
+			return nextOp(val)
+		}
+		return true
+	})
 }
 
 // PStreamKeep returns a stream consisting of all elements of the source stream
@@ -186,36 +156,20 @@ func PStreamKeep[T, U any](
 	srcSt Stream[Pair[T, U]],
 	keepOp func(T, U) bool,
 ) Stream[Pair[T, U]] {
-
-	return Stream[Pair[T, U]]{
-		srcIter: &fnIter[Pair[T, U]]{
-			fn: func(f func(Pair[T, U]) bool) {
-				srcSt.srcIter.iterate(func(val Pair[T, U]) (advance bool) {
-					if keepOp(val.First, val.Second) {
-						return f(val)
-					}
-					return true
-				})
-			},
-		},
-	}
+	return StreamKeep(srcSt, func(p Pair[T, U]) bool {
+		return keepOp(p.Get())
+	})
 }
 
 // StreamRemove returns a stream consisting of all elements of the source stream
 // that do _not_ match the given check.
 func StreamRemove[T any](srcSt Stream[T], removeOp func(T) bool) Stream[T] {
-	return Stream[T]{
-		srcIter: &fnIter[T]{
-			fn: func(f func(T) bool) {
-				srcSt.srcIter.iterate(func(val T) (advance bool) {
-					if !removeOp(val) {
-						return f(val)
-					}
-					return true
-				})
-			},
-		},
-	}
+	return StreamTransform(srcSt, func(val T, nextOp func(T) bool) bool {
+		if !removeOp(val) {
+			return nextOp(val)
+		}
+		return true
+	})
 }
 
 // PStreamRemove returns a stream consisting of all elements of the source stream
@@ -224,19 +178,9 @@ func PStreamRemove[T, U any](
 	srcSt Stream[Pair[T, U]],
 	removeOp func(T, U) bool,
 ) Stream[Pair[T, U]] {
-
-	return Stream[Pair[T, U]]{
-		srcIter: &fnIter[Pair[T, U]]{
-			fn: func(f func(Pair[T, U]) bool) {
-				srcSt.srcIter.iterate(func(val Pair[T, U]) (advance bool) {
-					if !removeOp(val.First, val.Second) {
-						return f(val)
-					}
-					return true
-				})
-			},
-		},
-	}
+	return StreamRemove(srcSt, func(p Pair[T, U]) bool {
+		return removeOp(p.Get())
+	})
 }
 
 // Each will perform the given function on each element of the input.
