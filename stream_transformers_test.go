@@ -7,51 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestStreamToMap(t *testing.T) {
-	t.Run("Basic", func(t *testing.T) {
-		m := map[string]int{
-			"a": 1,
-			"b": 2,
-			"c": 3,
-		}
-		assert.Equal(t, m, StreamToMap(StreamOfMap(m)))
-	})
-
-	t.Run("Collision", func(t *testing.T) {
-		assert.Panics(t, func() {
-			StreamToMap(StreamOfVals(
-				PairOf("a", 1),
-				PairOf("a", 2),
-			))
-		})
-	})
-}
-
-func TestStreamToMapMerge(t *testing.T) {
-	t.Run("Basic", func(t *testing.T) {
-		st := StreamOfVals(
-			PairOf("a", 1),
-			PairOf("a", 2),
-		)
-		assert.Equal(t,
-			map[string]int{
-				"a": 2,
-			},
-			StreamToMapMerge(st, func(key string, v1, v2 int) int {
-				return Max(v1, v2)
-			}))
-	})
-
-	t.Run("Collision", func(t *testing.T) {
-		assert.Panics(t, func() {
-			StreamToMap(StreamOfVals(
-				PairOf("a", 1),
-				PairOf("a", 2),
-			))
-		})
-	})
-}
-
 func TestStreamMap(t *testing.T) {
 	input := StreamOfVals(1, 2, 3)
 	assert.Equal(t,

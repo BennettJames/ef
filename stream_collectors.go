@@ -1,6 +1,48 @@
 package ef
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
+
+// StreamToMap takes each value in a pair-stream, and turns it into a map where
+// the keys are the first value in the pairs, and the values the second.
+//
+// Note that this cannot handle key collisions - if two pairs have the same `T`
+// value, this will panic. Use `StreamToMapMerge` to resolve collisions.
+func StreamToMap[T comparable, U any](srcSt Stream[Pair[T, U]]) map[T]U {
+	m := make(map[T]U)
+	EachPair(srcSt, func(t T, u U) {
+		if existing, exists := m[t]; !exists {
+			m[t] = u
+		} else {
+			// todo [bs]: probably want a custom error for this
+			panic(fmt.Errorf(
+				"StreamToMap: duplicate values found for key '%v' - ['%v', '%v']",
+				t, u, existing))
+		}
+		m[t] = u
+	})
+	return m
+}
+
+// StreamToMapMerge gathers a pair stream into a map, and resolves any duplicate
+// keys using the merge function to combine values.
+func StreamToMapMerge[T comparable, U any](
+	srcSt Stream[Pair[T, U]],
+	mergeOp func(key T, val1, val2 U) U,
+) map[T]U {
+	m := make(map[T]U)
+	EachPair(srcSt, func(key T, value U) {
+		if existing, exists := m[key]; !exists {
+			m[key] = value
+		} else {
+			m[key] = mergeOp(key, existing, value)
+		}
+		m[key] = value
+	})
+	return m
+}
 
 // StreamReduce combines all the values in the stream down to one of type `U`. A
 // value of `U` type is initialized, and merge is called repeatedly on each

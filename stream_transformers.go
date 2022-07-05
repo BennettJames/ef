@@ -1,69 +1,30 @@
 package ef
 
-import (
-	"fmt"
+type (
+	streamTransform[T, U any] struct {
+		srcStream Stream[T]
+		transform func(T, func(U) bool) bool
+	}
 )
 
-// StreamTransform is a generic helper that can be used to apply an operator
-// to a stream.
-//
-// (todo [bs]: expand docs)
+func (s *streamTransform[T, U]) iterate(opFn func(U) bool) {
+	s.srcStream.srcIter.iterate(func(val T) bool {
+		return s.transform(val, opFn)
+	})
+}
+
+// StreamTransform is a generic helper that can be used to inject an operator
+// in a stream, and allow for composition.
 func StreamTransform[T, U any](
 	srcSt Stream[T],
-	op func(T, func(U) bool) bool,
+	op func(val T, nextOp func(U) bool) (advance bool),
 ) Stream[U] {
-	// note [bs]: the API for this feels fairly good. If this is as general
-	// as it seems to be though, I may want to change the fnIter type - if
-	// this is basically the only use case for it, I could perhaps adapt it
-	// to just meet this case more directly.
 	return Stream[U]{
-		srcIter: &fnIter[U]{
-			fn: func(nextOp func(U) bool) {
-				srcSt.srcIter.iterate(func(val T) bool {
-					return op(val, nextOp)
-				})
-			},
+		srcIter: &streamTransform[T, U]{
+			srcStream: srcSt,
+			transform: op,
 		},
 	}
-}
-
-// StreamToMap takes each value in a pair-stream, and turns it into a map where
-// the keys are the first value in the pairs, and the values the second.
-//
-// Note that this cannot handle key collisions - if two pairs have the same `T`
-// value, this will panic. Use `StreamToMapMerge` to resolve collisions.
-func StreamToMap[T comparable, U any](srcSt Stream[Pair[T, U]]) map[T]U {
-	m := make(map[T]U)
-	EachPair(srcSt, func(t T, u U) {
-		if existing, exists := m[t]; !exists {
-			m[t] = u
-		} else {
-			// todo [bs]: probably want a custom error for this
-			panic(fmt.Errorf(
-				"StreamToMap: duplicate values found for key '%v' - ['%v', '%v']",
-				t, u, existing))
-		}
-		m[t] = u
-	})
-	return m
-}
-
-// StreamToMapMerge gathers a pair stream into a map, and resolves any duplicate
-// keys using the merge function to combine values.
-func StreamToMapMerge[T comparable, U any](
-	srcSt Stream[Pair[T, U]],
-	mergeOp func(key T, val1, val2 U) U,
-) map[T]U {
-	m := make(map[T]U)
-	EachPair(srcSt, func(key T, value U) {
-		if existing, exists := m[key]; !exists {
-			m[key] = value
-		} else {
-			m[key] = mergeOp(key, existing, value)
-		}
-		m[key] = value
-	})
-	return m
 }
 
 // StreamMap transforms each value in the input stream into a new value with
