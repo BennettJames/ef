@@ -1,26 +1,30 @@
-package ef
+package json
 
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"strings"
 )
 
+// note [bs]: this is an experiment to try to use automatic type mapping to make
+// it easier to read things into json structs. It's a little useful, but I don't
+// think it quite clears the bar - in particular, the inability to union w/
+// interfaces dampens the ergonomics.
+
+// Readable is a union of a few different types that are "close" to being
+// readable.
+//
+// Unfortunately, due to current limitations in generics the io.Reader interface
+// itself cannot be included in this set (discussion -
+// https://github.com/golang/go/issues/45346#issuecomment-862505803)
 type Readable interface {
-	~[]byte | ~string | ~*string | ~[]rune | ~func(p []byte) (n int, err error)
+	~[]byte | ~string | ~*string | ~[]rune
 }
 
-type explicitReader struct {
-	fn func(p []byte) (n int, err error)
-}
-
-func (sr *explicitReader) Read(p []byte) (n int, err error) {
-	return sr.fn(p)
-}
-
-func AutoReader[R Readable](r R) io.Reader {
+// ToReader maps a "Readable" type - that is, a type that can be treated as a
+// stream of characters - to an appropriate io.Reader.
+func ToReader[R Readable](r R) io.Reader {
 	switch narrowed := any(r).(type) {
 	case nil:
 		return strings.NewReader("")
@@ -38,36 +42,13 @@ func AutoReader[R Readable](r R) io.Reader {
 	case []rune:
 		// ques [bs]: is this particularly inefficient? I kinda suspect so.
 		return strings.NewReader(string(narrowed))
-	case func(p []byte) (n int, err error):
-		if narrowed != nil {
-			fmt.Println("@@@ got reader fn; nonnil")
-			return &explicitReader{
-				fn: narrowed,
-			}
-		} else {
-			fmt.Println("@@@ got reader fn; nil")
-			return strings.NewReader("")
-		}
 	default:
 		panic("unreachable")
 	}
 }
 
-// so interestingly, the mostly-original design doc suggests the following as a
-// legal constraint. I'm guessing they decided along the way to restrain
-// generics further. A little limiting but oh well.
-//
-// This may explain the issue -
-// https://github.com/golang/go/issues/45346#issuecomment-862505803
-
-func ReadJSON[Out any](s io.Reader) (out *Out, err error) {
-	out = new(Out)
-	err = json.NewDecoder(s).Decode(out)
-	return out, err
-}
-
-func ReadJSON2[Out any, In Readable](r In) (out *Out, err error) {
-	out = new(Out)
-	err = json.NewDecoder(AutoReader(r)).Decode(out)
+// Parse tries to read the input as a JSON object of the provided type.
+func Parse[T any](in io.Reader) (out T, err error) {
+	err = json.NewDecoder(in).Decode(&out)
 	return out, err
 }
