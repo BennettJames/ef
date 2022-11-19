@@ -23,3 +23,43 @@ func TestIsEmptyMap(t *testing.T) {
 	withoutEmpty := StreamRemove(input, IsEmptyMap[int, string]).ToSlice()
 	assert.Equal(t, Slice(map[int]string{1: "a"}), withoutEmpty)
 }
+
+func TestMisc(t *testing.T) {
+	type testCase[T any] struct {
+		fn func(T) bool
+
+		expected bool
+	}
+
+	assert.True(t,
+		And(
+			Equal(22),
+			Not(Equal(3)),
+			Or(
+				Lesser(20),
+				Greater(10),
+			),
+			GreaterOrEqual(22),
+		)(22))
+
+	assert.True(t,
+		And(
+			Equal("hello"),
+		)("hello"))
+
+	assert.False(t,
+		And(
+			Not(Equal("hello")),
+		)("hello"))
+
+	assert.True(t,
+		Or(
+			Equal("hello"),
+			IsEmptyStr,
+		)("hello"))
+
+	assert.True(t, LesserOrEqual(3)(1))
+	assert.True(t, LesserOrEqual(3)(3))
+	assert.False(t, LesserOrEqual(3)(5))
+
+}
