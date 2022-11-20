@@ -10,7 +10,7 @@ import (
 
 func TestRes(t *testing.T) {
 
-	t.Run("ResOf", func(t *testing.T) {
+	t.Run("Of", func(t *testing.T) {
 		t.Run("Val", func(t *testing.T) {
 			r := Of(passthrough("value", nil))
 			assert.Equal(t, Val("value"), r)
@@ -18,11 +18,11 @@ func TestRes(t *testing.T) {
 
 		t.Run("Err", func(t *testing.T) {
 			r := Of(passthrough("value", fmt.Errorf("error")))
-			assert.Equal(t, ResErr[string](fmt.Errorf("error")), r)
+			assert.Equal(t, Err[string](fmt.Errorf("error")), r)
 		})
 	})
 
-	t.Run("ResOf2", func(t *testing.T) {
+	t.Run("Of2", func(t *testing.T) {
 		t.Run("Vals", func(t *testing.T) {
 			res := Of2("a", 22, nil)
 			assert.Equal(t, Val(ef.PairOf("a", 22)), res)
@@ -31,12 +31,12 @@ func TestRes(t *testing.T) {
 		t.Run("Err", func(t *testing.T) {
 			err := fmt.Errorf("error")
 			res := Of2("a", 22, err)
-			assert.Equal(t, ResErr[ef.Pair[string, int]](err), res)
+			assert.Equal(t, Err[ef.Pair[string, int]](err), res)
 
 		})
 	})
 
-	t.Run("ResOfPtr", func(t *testing.T) {
+	t.Run("OfPtr", func(t *testing.T) {
 		t.Run("Val", func(t *testing.T) {
 			val, err := OfPtr(ef.Ptr("value"), nil).Get()
 			assert.Equal(t, "value", val)
@@ -56,33 +56,33 @@ func TestRes(t *testing.T) {
 		})
 	})
 
-	t.Run("ResOfOpt", func(t *testing.T) {
+	t.Run("OfOpt", func(t *testing.T) {
 		t.Run("Val", func(t *testing.T) {
-			res := OfOpt(ef.OptOf("hello"))
+			res := OfOpt(ef.NewOptValue("hello"))
 			assert.Equal(t, Val("hello"), res)
 		})
 
 		t.Run("Nil", func(t *testing.T) {
-			res := OfOpt(ef.OptOfPtr[string](nil))
-			assert.Equal(t, ResErr[string](&ef.UnexpectedNilError{}), res)
+			res := OfOpt(ef.Opt[string]{})
+			assert.Equal(t, Err[string](&ef.UnexpectedNilError{}), res)
 		})
 	})
 
-	t.Run("ResOfErr", func(t *testing.T) {
+	t.Run("OfErr", func(t *testing.T) {
 		t.Run("Basic", func(t *testing.T) {
-			val, err := ResErr[*string](fmt.Errorf("error")).Get()
+			val, err := Err[*string](fmt.Errorf("error")).Get()
 			assert.Nil(t, val)
 			assert.Equal(t, fmt.Errorf("error"), err)
 		})
 
 		t.Run("NilErr", func(t *testing.T) {
-			val, err := ResErr[string](nil).Get()
+			val, err := Err[string](nil).Get()
 			assert.Nil(t, err)
 			assert.Equal(t, "", val)
 		})
 	})
 
-	t.Run("ResDeref", func(t *testing.T) {
+	t.Run("Deref", func(t *testing.T) {
 		t.Run("WithValue", func(t *testing.T) {
 			assert.Equal(
 				t,
@@ -99,7 +99,7 @@ func TestRes(t *testing.T) {
 		})
 	})
 
-	t.Run("ResMap", func(t *testing.T) {
+	t.Run("Map", func(t *testing.T) {
 		t.Run("Val", func(t *testing.T) {
 			in := 22
 			ret := "hello"
@@ -116,14 +116,14 @@ func TestRes(t *testing.T) {
 			err := fmt.Errorf("error")
 			assert.Equal(
 				t,
-				ResErr[string](err),
-				Map(ResErr[int](err), func(int) string {
+				Err[string](err),
+				Map(Err[int](err), func(int) string {
 					panic("unreachable")
 				}))
 		})
 	})
 
-	t.Run("ResFlatMap", func(t *testing.T) {
+	t.Run("FlatMap", func(t *testing.T) {
 		t.Run("Val", func(t *testing.T) {
 			in := 22
 			ret := "hello"
@@ -140,8 +140,8 @@ func TestRes(t *testing.T) {
 			err := fmt.Errorf("error")
 			assert.Equal(
 				t,
-				ResErr[string](err),
-				FlatMap(ResErr[int](err), func(int) ef.Res[string] {
+				Err[string](err),
+				FlatMap(Err[int](err), func(int) ef.Res[string] {
 					panic("unreachable")
 				}))
 		})
@@ -151,15 +151,15 @@ func TestRes(t *testing.T) {
 			err := fmt.Errorf("error")
 			assert.Equal(
 				t,
-				ResErr[string](err),
-				FlatMap(ResErr[int](err), func(val int) ef.Res[string] {
+				Err[string](err),
+				FlatMap(Err[int](err), func(val int) ef.Res[string] {
 					assert.Equal(t, in, val)
-					return ResErr[string](err)
+					return Err[string](err)
 				}))
 		})
 	})
 
-	t.Run("ResRecover", func(t *testing.T) {
+	t.Run("Recover", func(t *testing.T) {
 		t.Run("NoPanic", func(t *testing.T) {
 			res := Val("value")
 			Recover(&res)
@@ -173,7 +173,7 @@ func TestRes(t *testing.T) {
 		})
 	})
 
-	t.Run("ResTry", func(t *testing.T) {
+	t.Run("Try", func(t *testing.T) {
 		t.Run("NoPanicVal", func(t *testing.T) {
 			r := Val(22)
 			assert.Equal(
@@ -185,7 +185,7 @@ func TestRes(t *testing.T) {
 		})
 
 		t.Run("NoPanicErr", func(t *testing.T) {
-			r := ResErr[string](fmt.Errorf("error"))
+			r := Err[string](fmt.Errorf("error"))
 			assert.Equal(
 				t,
 				r,
@@ -199,7 +199,7 @@ func TestRes(t *testing.T) {
 			panicVal := fmt.Errorf("error")
 			assert.Equal(
 				t,
-				ResErr[string](panicVal),
+				Err[string](panicVal),
 				TryMap(r, func(v int) string {
 					panic(panicVal)
 				}))
@@ -210,14 +210,14 @@ func TestRes(t *testing.T) {
 			var panicVal any = "error"
 			assert.Equal(
 				t,
-				ResErr[string](ef.NewRecoverError(panicVal)),
+				Err[string](ef.NewRecoverError(panicVal)),
 				TryMap(r, func(v int) string {
 					panic(panicVal)
 				}))
 		})
 	})
 
-	t.Run("ResFlatTry", func(t *testing.T) {
+	t.Run("FlatTry", func(t *testing.T) {
 		t.Run("NoPanicVal", func(t *testing.T) {
 			r := Val(22)
 			assert.Equal(
@@ -229,7 +229,7 @@ func TestRes(t *testing.T) {
 		})
 
 		t.Run("NoPanicErr", func(t *testing.T) {
-			r := ResErr[string](fmt.Errorf("error"))
+			r := Err[string](fmt.Errorf("error"))
 			assert.Equal(
 				t,
 				r,
@@ -243,7 +243,7 @@ func TestRes(t *testing.T) {
 			panicVal := fmt.Errorf("error")
 			assert.Equal(
 				t,
-				ResErr[string](panicVal),
+				Err[string](panicVal),
 				TryFlatMap(r, func(v int) ef.Res[string] {
 					panic(panicVal)
 				}))
@@ -262,16 +262,16 @@ func TestRes(t *testing.T) {
 			val := fmt.Errorf("error")
 			assert.Equal(
 				t,
-				ResErr[string](val),
-				Flatten(Val(ResErr[string](val))))
+				Err[string](val),
+				Flatten(Val(Err[string](val))))
 		})
 
 		t.Run("ErrInner", func(t *testing.T) {
 			val := fmt.Errorf("error")
 			assert.Equal(
 				t,
-				ResErr[string](val),
-				Flatten(ResErr[ef.Res[string]](val)))
+				Err[string](val),
+				Flatten(Err[ef.Res[string]](val)))
 		})
 	})
 }

@@ -146,7 +146,7 @@ func TestStreamFind(t *testing.T) {
 			return v%3 == 0
 		})
 		assert.Equal(t, 0, iterCount)
-		assert.Equal(t, OptEmpty[int](), foundVal)
+		assert.Equal(t, Opt[int]{}, foundVal)
 	})
 
 	t.Run("HasValue", func(t *testing.T) {
@@ -157,7 +157,7 @@ func TestStreamFind(t *testing.T) {
 			return v%3 == 0
 		})
 		assert.Equal(t, 3, iterCount)
-		assert.Equal(t, OptOf(3), foundVal)
+		assert.Equal(t, NewOptValue(3), foundVal)
 	})
 
 	t.Run("MissingValue", func(t *testing.T) {
@@ -168,7 +168,7 @@ func TestStreamFind(t *testing.T) {
 			return v%7 == 0
 		})
 		assert.Equal(t, 5, iterCount)
-		assert.Equal(t, OptEmpty[int](), foundVal)
+		assert.Equal(t, Opt[int]{}, foundVal)
 	})
 }
 
@@ -188,7 +188,7 @@ func TestPStreamFind(t *testing.T) {
 			return v%3 == 0
 		})
 		assert.Equal(t, 3, iterCount)
-		assert.Equal(t, OptOf(PairOf("c", 3)), foundVal)
+		assert.Equal(t, NewOptValue(PairOf("c", 3)), foundVal)
 	})
 
 	t.Run("MissingValue", func(t *testing.T) {
@@ -205,7 +205,7 @@ func TestPStreamFind(t *testing.T) {
 			return v%7 == 0
 		})
 		assert.Equal(t, 5, iterCount)
-		assert.Equal(t, OptEmpty[Pair[string, int]](), foundVal)
+		assert.Equal(t, Opt[Pair[string, int]]{}, foundVal)
 	})
 }
 

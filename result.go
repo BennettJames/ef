@@ -14,10 +14,14 @@ type Res[T any] struct {
 	err error
 }
 
+// NewResValue constructs a value-type result with the given value. Note that
+// `res.Val` is usually the preferred mechanism for performing this.
 func NewResValue[T any](val T) Res[T] {
 	return Res[T]{val: val}
 }
 
+// NewResError constructs an error-type result with the given error. Note that
+// `res.Err` is usually the preferred mechanism for performing this.
 func NewResError[T any](err error) Res[T] {
 	return Res[T]{err: err}
 }

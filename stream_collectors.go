@@ -51,9 +51,8 @@ func StreamToMapMerge[T comparable, U any](
 //
 // Example:
 //
-//   st := StreamOfVals(1, 2, 3)
-//   sum := StreamReduce(st, func(v1, v2 int) int { return v1 + v2 })
-//
+//	st := StreamOfVals(1, 2, 3)
+//	sum := StreamReduce(st, func(v1, v2 int) int { return v1 + v2 })
 func StreamReduce[T any, U any](
 	srcSt Stream[T],
 	reduceOp func(total U, val T) U,
@@ -64,15 +63,14 @@ func StreamReduce[T any, U any](
 }
 
 // StreamReduceInit combines all the values in the stream down to one of type
-// `U`. `merge`` is called repeatedly on each element in the stream with the
+// `U`. `merge“ is called repeatedly on each element in the stream with the
 // current value of `U`, starting with the provided `initVal`. Once the stream
 // is finished, the final value is returned.
 //
 // Example:
 //
-//   st := StreamOfVals(1, 2, 3)
-//   product := StreamReduceInit(st, 1, func(v1, v2 int) int { return v1 * v2 })
-//
+//	st := StreamOfVals(1, 2, 3)
+//	product := StreamReduceInit(st, 1, func(v1, v2 int) int { return v1 * v2 })
 func StreamReduceInit[T any, U any](
 	srcSt Stream[T],
 	initVal U,
@@ -91,13 +89,12 @@ func StreamReduceInit[T any, U any](
 //
 // Example:
 //
-//   st := StreamOfMap(map[string]int{
-//     "a": 1,
-//     "b": 2,
-//     "c": 3,
-//   })
-//   sum := StreamReduce(st, func(total int, k string, v int) int { return total + v })
-//
+//	st := StreamOfMap(map[string]int{
+//	  "a": 1,
+//	  "b": 2,
+//	  "c": 3,
+//	})
+//	sum := StreamReduce(st, func(total int, k string, v int) int { return total + v })
 func PStreamReduce[T any, U any, V any](
 	srcSt Stream[Pair[T, U]],
 	reduceOp func(total V, first T, second U) V,
@@ -107,21 +104,20 @@ func PStreamReduce[T any, U any, V any](
 }
 
 // PStreamReduceInit combines all the values in the pair-stream down to one of
-// type `V`. `merge`` is called repeatedly on each element in the stream with
+// type `V`. `merge“ is called repeatedly on each element in the stream with
 // the current value of `V`, starting with the provided `initVal`. Once the
 // stream is finished, the final value is returned.
 //
 // Example:
 //
-//   st := StreamOfMap(map[string]int{
-//     "a": 1,
-//     "b": 2,
-//     "c": 3,
-//   })
-//   product := PStreamReduceInit(st, 1, func(total int, key string, val int) int {
-//     return total * val
-//   })
-//
+//	st := StreamOfMap(map[string]int{
+//	  "a": 1,
+//	  "b": 2,
+//	  "c": 3,
+//	})
+//	product := PStreamReduceInit(st, 1, func(total int, key string, val int) int {
+//	  return total * val
+//	})
 func PStreamReduceInit[T any, U any, V any](
 	srcSt Stream[Pair[T, U]],
 	initVal V,
@@ -143,7 +139,7 @@ func StreamFind[T any](
 	var foundVal Opt[T]
 	srcSt.srcIter.iterate(func(val T) (advance bool) {
 		if findOp(val) {
-			foundVal = OptOf(val)
+			foundVal = NewOptValue(val)
 			return false
 		}
 		return true

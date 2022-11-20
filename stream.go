@@ -26,7 +26,11 @@ func StreamOf[T any, S Streamable[T]](s S) Stream[T] {
 	case []T:
 		return StreamOfSlice(narrowed)
 	case *T:
-		return StreamOfSlice(OptOfPtr(narrowed).ToList())
+		if narrowed == nil {
+			return StreamOfSlice([]T{})
+		} else {
+			return StreamOfSlice([]T{*narrowed})
+		}
 	case Opt[T]:
 		return StreamOfSlice(narrowed.ToList())
 	case Stream[T]:

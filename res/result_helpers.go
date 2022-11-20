@@ -1,6 +1,9 @@
 package res
 
-import "github.com/BennettJames/ef"
+import (
+	"github.com/BennettJames/ef"
+	"github.com/BennettJames/ef/opt"
+)
 
 // Of creates a result from a pair of values. If error is set, it will be an
 // error type; otherwise a result.
@@ -10,7 +13,7 @@ func Of[T any](val T, e error) ef.Res[T] {
 	if e == nil {
 		return Val(val)
 	}
-	return ResErr[T](e)
+	return Err[T](e)
 }
 
 // Creates a result from three values, where the first two are turned into a
@@ -25,7 +28,7 @@ func Of2[T, U any](v1 T, v2 U, e error) ef.Res[ef.Pair[T, U]] {
 	if e == nil {
 		return Val(ef.PairOf(v1, v2))
 	}
-	return ResErr[ef.Pair[T, U]](e)
+	return Err[ef.Pair[T, U]](e)
 }
 
 // OfPtr takes a par of a pointer value and an error, and converts it to a a
@@ -35,22 +38,22 @@ func Of2[T, U any](v1 T, v2 U, e error) ef.Res[ef.Pair[T, U]] {
 // returned.
 func OfPtr[T any](val *T, e error) ef.Res[T] {
 	if e != nil {
-		return ResErr[T](e)
+		return Err[T](e)
 	}
 	if val != nil {
 		return Val(*val)
 	}
-	return ResErr[T](&ef.UnexpectedNilError{})
+	return Err[T](&ef.UnexpectedNilError{})
 }
 
 // OfOpt will return an value type result if the optional has a value, or a
 // result with a nil reference error.
 func OfOpt[T any](o ef.Opt[T]) ef.Res[T] {
 	// note [bs]: pretty sure this equivalent of ResOfPtr(o.Get())
-	return ef.OptMap(o, func(v T) ef.Res[T] {
+	return opt.Map(o, func(v T) ef.Res[T] {
 		return Val(v)
 	}).OrCalc(func() ef.Res[T] {
-		return ResErr[T](&ef.UnexpectedNilError{})
+		return Err[T](&ef.UnexpectedNilError{})
 	})
 }
 
@@ -68,9 +71,9 @@ func Deref[T any](r ef.Res[*T]) ef.Res[T] {
 	})
 }
 
-// ResErr creates an error result for the given error. If the error is null,
+// Err creates an error result for the given error. If the error is null,
 // then the result is a value type with a zero V value.
-func ResErr[T any](err error) ef.Res[T] {
+func Err[T any](err error) ef.Res[T] {
 	return ef.NewResError[T](err)
 }
 
@@ -80,7 +83,7 @@ func Map[T, U any](r ef.Res[T], fn func(val T) U) ef.Res[U] {
 	if r.IsVal() {
 		return Val(fn(r.Val()))
 	}
-	return ResErr[U](r.Err())
+	return Err[U](r.Err())
 }
 
 // FlatMap is as ResMap, but expects a result from the inner function.
@@ -88,7 +91,7 @@ func FlatMap[T, U any](r ef.Res[T], fn func(val T) ef.Res[U]) ef.Res[U] {
 	if r.IsVal() {
 		return fn(r.Val())
 	}
-	return ResErr[U](r.Err())
+	return Err[U](r.Err())
 }
 
 // Recover performs automatic recovery from a panic, and converts the panic to
@@ -122,9 +125,9 @@ func Recover[T any](r *ef.Res[T]) {
 	case error:
 		// todo [bs]: consider unwrapping certain internal error types here - e.g.
 		// don't
-		*r = ResErr[T](narrowed)
+		*r = Err[T](narrowed)
 	default:
-		*r = ResErr[T](ef.NewRecoverError(narrowed))
+		*r = Err[T](ef.NewRecoverError(narrowed))
 	}
 }
 
@@ -135,7 +138,7 @@ func Recover[T any](r *ef.Res[T]) {
 func TryMap[V, U any](r ef.Res[V], fn func(val V) U) (res ef.Res[U]) {
 	defer Recover(&res)
 	if !r.IsVal() {
-		return ResErr[U](r.Err())
+		return Err[U](r.Err())
 	}
 	return Val(fn(r.Val()))
 }
@@ -147,7 +150,7 @@ func TryFlatMap[V, U any](
 ) (res ef.Res[U]) {
 	defer Recover(&res)
 	if !r.IsVal() {
-		return ResErr[U](r.Err())
+		return Err[U](r.Err())
 	}
 	return Flatten(Val(fn(r.Val())))
 }
@@ -163,7 +166,7 @@ func TryFlatMap[V, U any](
 //	Flatten(ResOfErr[Res[string]](fmt.Errorf("error")))      // == ResOfErr[string](fmt.Errorf("error"))
 func Flatten[T any](r ef.Res[ef.Res[T]]) ef.Res[T] {
 	if r.IsErr() {
-		return ResErr[T](r.Err())
+		return Err[T](r.Err())
 	}
 	return r.Val()
 }

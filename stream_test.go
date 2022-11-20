@@ -69,12 +69,12 @@ func TestStreamOf(t *testing.T) {
 
 	t.Run("Optional", func(t *testing.T) {
 		t.Run("Value", func(t *testing.T) {
-			st := StreamOf[int](OptOf(1))
+			st := StreamOf[int](NewOptValue(1))
 			assert.Equal(t, Slice(1), st.ToSlice())
 		})
 
 		t.Run("Empty", func(t *testing.T) {
-			st := StreamOf[int](OptEmpty[int]())
+			st := StreamOf[int](Opt[int]{})
 			assert.Equal(t, Slice[int](), st.ToSlice())
 		})
 	})
@@ -91,11 +91,11 @@ func TestStreamOf(t *testing.T) {
 		counter := 1
 		fn := func() Opt[int] {
 			if counter > 3 {
-				return OptEmpty[int]()
+				return Opt[int]{}
 			}
 			val := counter
 			counter++
-			return OptOf(val)
+			return NewOptValue(val)
 		}
 		st := StreamOf[int](fn)
 		assert.Equal(t, Slice(1, 2, 3), st.ToSlice())
@@ -162,7 +162,7 @@ func TestStreamConcat(t *testing.T) {
 			Slice(1, 2, 3, 4, 5),
 			StreamConcat(
 				StreamOf[int](Slice(1, 2, 3)),
-				StreamOf[int](OptOf(4)),
+				StreamOf[int](NewOptValue(4)),
 				StreamOf[int](Ptr(5)),
 			).ToSlice())
 	})
