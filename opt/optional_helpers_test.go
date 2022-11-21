@@ -41,7 +41,7 @@ func TestOptional(t *testing.T) {
 	t.Run("OfOk", func(t *testing.T) {
 		t.Run("Ok", func(t *testing.T) {
 			assert.Equal(t,
-				ef.Opt[string]{},
+				ef.NewOptValue("hello"),
 				OfOk("hello", true))
 		})
 

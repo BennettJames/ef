@@ -69,7 +69,7 @@ type rangeStruct[I Integer] struct {
 	offset     I
 }
 
-func (ri *rangeStruct[T]) iterate(fn func(T) bool) {
+func (ri *rangeStruct[T]) Next(fn func(T) bool) {
 	// note [bs]: double check the bound behavior here
 	for v := ri.start; v < ri.end; v++ {
 		if !fn(v) {
@@ -98,7 +98,7 @@ type rangeInclStruct[I Integer] struct {
 	offset     I
 }
 
-func (ri *rangeInclStruct[T]) iterate(fn func(T) bool) {
+func (ri *rangeInclStruct[T]) Next(fn func(T) bool) {
 	// note [bs]: double check the bound behavior here
 	for v := ri.start; v <= ri.end; v++ {
 		if !fn(v) {
@@ -108,7 +108,7 @@ func (ri *rangeInclStruct[T]) iterate(fn func(T) bool) {
 }
 
 // RangeRev produces the same values as Range, but in reverse. Note it is still
-// exclusive on the last value - so the first value is `end - 1``, and the last
+// exclusive on the last value - so the first value is `end - 1“, and the last
 // value is `start`.
 func RangeRev[I Integer](start, end I) Stream[I] {
 	return Stream[I]{
@@ -124,7 +124,7 @@ type rangeRevStruct[I Integer] struct {
 	offset     I
 }
 
-func (ri *rangeRevStruct[T]) iterate(fn func(T) bool) {
+func (ri *rangeRevStruct[T]) Next(fn func(T) bool) {
 	// note [bs]: double check the bound behavior here
 	for v := ri.end - 1; v >= ri.start; v-- {
 		if !fn(v) {
@@ -148,7 +148,7 @@ type rangeReverseInclStruct[I Integer] struct {
 	offset     I
 }
 
-func (ri *rangeReverseInclStruct[T]) iterate(fn func(T) bool) {
+func (ri *rangeReverseInclStruct[T]) Next(fn func(T) bool) {
 	// note [bs]: double check the bound behavior here
 	for v := ri.end; v >= ri.start; v-- {
 		if !fn(v) {
