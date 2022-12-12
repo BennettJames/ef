@@ -13,6 +13,12 @@ type (
 	UnreachableError struct{}
 )
 
+func NewRecoverError(err any) *RecoverError {
+	// note [bs]: not sold on this yet; I think the error machinery here will
+	// generally need to be improved but let's worry about that later.
+	return &RecoverError{recovered: err}
+}
+
 func (e *RecoverError) Error() string {
 	// note [bs]: not super happy with this text value; let's workshop it.
 	return fmt.Sprintf("Recovered try with value: '%v'", e.recovered)

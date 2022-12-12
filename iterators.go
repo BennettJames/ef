@@ -1,37 +1,37 @@
 package ef
 
 type (
-	sliceIter[T any] struct {
-		vals []T
+	SliceIter[T any] struct {
+		Vals []T
 	}
 
-	indexedSliceIter[T any] struct {
-		vals []T
+	IndexedSliceIter[T any] struct {
+		Vals []T
 	}
 
-	mapIter[T comparable, V any] struct {
-		vals map[T]V
+	MapIter[T comparable, V any] struct {
+		Vals map[T]V
 	}
 
-	fnIter[T any] struct {
-		fn func(func(val T) (advance bool))
+	FnIter[T any] struct {
+		Fn func(func(val T) (advance bool))
 	}
 
-	multiStream[T any] struct {
-		streams []Stream[T]
+	MultiStream[T any] struct {
+		Streams []Stream[T]
 	}
 )
 
-func (si *sliceIter[T]) iterate(opFn func(T) (advance bool)) {
-	for _, v := range si.vals {
+func (si *SliceIter[T]) Next(opFn func(T) (advance bool)) {
+	for _, v := range si.Vals {
 		if !opFn(v) {
 			break
 		}
 	}
 }
 
-func (si *indexedSliceIter[T]) iterate(opFn func(Pair[int, T]) (advance bool)) {
-	for i, v := range si.vals {
+func (si *IndexedSliceIter[T]) Next(opFn func(Pair[int, T]) (advance bool)) {
+	for i, v := range si.Vals {
 		advance := opFn(PairOf(i, v))
 		if !advance {
 			break
@@ -39,20 +39,20 @@ func (si *indexedSliceIter[T]) iterate(opFn func(Pair[int, T]) (advance bool)) {
 	}
 }
 
-func (si *mapIter[T, U]) iterate(opFn func(Pair[T, U]) (advance bool)) {
-	for k, v := range si.vals {
+func (si *MapIter[T, U]) Next(opFn func(Pair[T, U]) (advance bool)) {
+	for k, v := range si.Vals {
 		if !opFn(PairOf(k, v)) {
 			break
 		}
 	}
 }
 
-func (fi *fnIter[T]) iterate(opFn func(T) bool) {
-	fi.fn(opFn)
+func (fi *FnIter[T]) Next(opFn func(T) bool) {
+	fi.Fn(opFn)
 }
 
-func (ms *multiStream[T]) iterate(opFn func(T) (advance bool)) {
-	for _, st := range ms.streams {
-		st.srcIter.iterate(opFn)
+func (ms *MultiStream[T]) Next(opFn func(T) (advance bool)) {
+	for _, st := range ms.Streams {
+		st.srcIter.Next(opFn)
 	}
 }
